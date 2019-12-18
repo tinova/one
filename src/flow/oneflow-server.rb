@@ -1,3 +1,4 @@
+# rubocop:disable Naming/FileName
 # -------------------------------------------------------------------------- #
 # Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
@@ -65,7 +66,7 @@ DEFAULT_VM_NAME_TEMPLATE = '$ROLE_NAME_$VM_NUMBER_(service_$SERVICE_ID)'
 
 begin
     conf = YAML.load_file(CONFIGURATION_FILE)
-rescue Exception => e
+rescue StandardError => e
     STDERR.puts "Error parsing config file #{CONFIGURATION_FILE}: #{e.message}"
     exit 1
 end
@@ -83,7 +84,9 @@ set :bind, conf[:host]
 set :port, conf[:port]
 set :config, conf
 
+# rubocop:disable Style/MixinUsage
 include CloudLogger
+# rubocop:enable Style/MixinUsage
 
 logger = enable_logging ONEFLOW_LOG, conf[:debug_level].to_i
 
@@ -99,7 +102,7 @@ Log.info LOG_COMP, 'Starting server'
 begin
     ENV['ONE_CIPHER_AUTH'] = ONEFLOW_AUTH
     cloud_auth = CloudAuth.new(conf)
-rescue => e
+rescue StandardError => e
     message = "Error initializing authentication system : #{e.message}"
     Log.error LOG_COMP, message
     STDERR.puts message
@@ -157,7 +160,7 @@ GENERAL_EC    = 500 # general error
 # LCM and Event Manager
 ##############################################################################
 
-# TODO make thread number configurable?
+# TODO: make thread number configurable?
 lcm = ServiceLCM.new(10, cloud_auth)
 
 ##############################################################################
@@ -198,11 +201,6 @@ delete '/service/:id' do
     rc = service.info
     if OpenNebula.is_error?(rc)
         error CloudServer::HTTP_ERROR_CODE[rc.errno], rc.message
-        return internal_error(rc.message, GENERAL_EC)
-    end
-
-    if service.state == Service::STATE['DELETING']
-        return internal_error('The service is already deleting', OPERATION_EC)
     end
 
     # Starts service undeploying async
@@ -259,13 +257,13 @@ post '/service/:id/action' do
         if opts && opts['append']
             if opts['template_json']
                 begin
-                    rc = service.update(opts['template_json'], true)
+                    service.update(opts['template_json'], true)
                     status 204
-                rescue Validator::ParseException, JSON::ParserError
-                    OpenNebula::Error.new($!.message)
+                rescue Validator::ParseException, JSON::ParserError => e
+                    OpenNebula::Error.new(e.message)
                 end
             elsif opts['template_raw']
-                rc = service.update_raw(opts['template_raw'], true)
+                service.update_raw(opts['template_raw'], true)
                 status 204
             else
                 OpenNebula::Error.new("Action #{action['perform']}: " \
@@ -289,8 +287,8 @@ put '/service/:id/role/:name' do
     service_rc = service_pool.get(params[:id]) do |service|
         begin
             rc = service.update_role(params[:name], request.body.read)
-        rescue Validator::ParseException, JSON::ParserError
-            return error 400, $!.message
+        rescue Validator::ParseException, JSON::ParserError => e
+            return internal_error(e.message, VALIDATION_EC)
         end
     end
 
@@ -395,8 +393,8 @@ put '/service_template/:id' do
 
     begin
         rc = service_template.update(request.body.read)
-    rescue Validator::ParseException, JSON::ParserError
-        return internal_error($!.message, VALIDATION_EC)
+    rescue Validator::ParseException, JSON::ParserError => e
+        return internal_error(e.message, VALIDATION_EC)
     end
 
     if OpenNebula.is_error?(rc)
@@ -416,8 +414,8 @@ post '/service_template' do
 
     begin
         rc = s_template.allocate(request.body.read)
-    rescue Validator::ParseException, JSON::ParserError
-        return internal_error($!.message, VALIDATION_EC)
+    rescue Validator::ParseException, JSON::ParserError => e
+        return internal_error(e.message, VALIDATION_EC)
     end
 
     if OpenNebula.is_error?(rc)
@@ -454,7 +452,8 @@ post '/service_template/:id/action' do
         service_json   = JSON.parse(service_template.to_json)
 
         # Check custom_attrs
-        custom_attrs = service_json['DOCUMENT']['TEMPLATE']['BODY']['custom_attrs']
+        body         = service_json['DOCUMENT']['TEMPLATE']['BODY']
+        custom_attrs = body['custom_attrs']
         custom_attrs_values = merge_template['custom_attrs_values']
 
         if custom_attrs && !(custom_attrs.is_a? Hash)
@@ -474,7 +473,7 @@ post '/service_template/:id/action' do
         end
 
         # Check networks
-        networks = service_json['DOCUMENT']['TEMPLATE']['BODY']['networks']
+        networks = body['networks']
         networks_values = merge_template['networks_values']
 
         if networks && !(networks.is_a? Hash)
@@ -485,7 +484,8 @@ post '/service_template/:id/action' do
             return internal_error('Wrong networks_values format', VALIDATION_EC)
         end
 
-        if !(networks.keys - networks_values.collect {|i| i.keys }.flatten).empty?
+        if !(networks.keys -
+            networks_values.collect {|i| i.keys }.flatten).empty?
             return internal_error('Every network key must have its value ' \
                                   'defined at networks_value', VALIDATION_EC)
         end
@@ -540,14 +540,14 @@ post '/service_template/:id/action' do
 
         if opts && opts['template_json']
             begin
-                rc = service_template.update(opts['template_json'], append)
+                service_template.update(opts['template_json'], append)
 
                 status 204
-            rescue Validator::ParseException, JSON::ParserError
-                return internal_error($!.message, VALIDATION_EC)
+            rescue Validator::ParseException, JSON::ParserError => e
+                return internal_error(e.message, VALIDATION_EC)
             end
         elsif opts && opts['template_raw']
-            rc = service_template.update_raw(opts['template_raw'], append)
+            service_template.update_raw(opts['template_raw'], append)
 
             status 204
         else
@@ -566,7 +566,8 @@ post '/service_template/:id/action' do
         new_stemplate = OpenNebula::ServiceTemplate.new_with_id(rc, @client)
         new_stemplate.info
         if OpenNebula.is_error?(new_stemplate)
-            error CloudServer::HTTP_ERROR_CODE[new_stemplate.errno], new_stemplate.message
+            error CloudServer::HTTP_ERROR_CODE[new_stemplate.errno],
+                  new_stemplate.message
         end
 
         status 201
@@ -582,3 +583,4 @@ post '/service_template/:id/action' do
         error CloudServer::HTTP_ERROR_CODE[rc.errno], rc.message
     end
 end
+# rubocop:enable Naming/FileName

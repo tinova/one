@@ -127,16 +127,13 @@ class ServiceLCM
 
     def sched_action(client, service_id, role_name, action, period, number)
         rc = @srv_pool.get(service_id, client) do |service|
-            roles = service.roles
-
-            role = roles[role_name]
+            role = service.roles[role_name]
 
             if role.nil?
-                break OpenNebula::Error.new("Role '#{role_name}' "\
-                                            'not found')
-            else
-                role.batch_action(action, period, number)
+                break OpenNebula::Error.new("Role '#{role_name}' not found")
             end
+
+            role.batch_action(action, period, number)
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
@@ -194,11 +191,12 @@ class ServiceLCM
         rc = @srv_pool.get(service_id) do |service|
             set_deploy_strategy(service)
 
-            if service.transient_state? &&
-               service.state != Service::STATE['UNDEPLOYING']
+            if (service.transient_state? &&
+                service.state != Service::STATE['UNDEPLOYING']) ||
+               service.state == Service::STATE['DONE'] ||
+               service.failed_state?
                 Log.error LOG_COMP, 'Service cannot be undeployed in '\
                                     "state: #{service.state_str}"
-
                 break
             end
 
@@ -236,26 +234,31 @@ class ServiceLCM
                 Log.error LOG_COMP, 'Failure scaling service. ' \
                                     'Services cannot be scaled in ' \
                                     "#{service.state_str} state."
-
                 break
             end
 
-            rc = nil
-            # TODO, validate role_name
             role = service.roles[role_name]
 
+            if role.nil?
+                Log.error LOG_COMP, "Role #{role_name} not found"
+                break
+            end
+
+            rc               = nil
             cardinality_diff = cardinality - role.cardinality
 
             set_cardinality(role, cardinality, force)
 
             if cardinality_diff > 0
                 role.scale_way('UP')
+
                 rc = deploy_roles({ role_name => role },
                                   'SCALING',
                                   'FAILED_SCALING',
                                   true)
             elsif cardinality_diff < 0
                 role.scale_way('DOWN')
+
                 rc = undeploy_roles({ role_name => role },
                                     'SCALING',
                                     'FAILED_SCALING',

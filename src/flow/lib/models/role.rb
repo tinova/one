@@ -517,18 +517,14 @@ module OpenNebula
         # @param [Integer] period
         # @param [Integer] vm_per_period
         def batch_action(action, period, vms_per_period)
-            vms_id = []
-
-            # TODO: check action is a valid string, period vm_per_period integer
-
-            error_msgs = []
-            nodes = @body['nodes']
-            now = Time.now.to_i
+            vms_id      = []
+            error_msgs  = []
+            nodes       = @body['nodes']
+            now         = Time.now.to_i
+            time_offset = 0
 
             do_offset = (!period.nil? && period.to_i > 0 &&
                 !vms_per_period.nil? && vms_per_period.to_i > 0)
-
-            time_offset = 0
 
             nodes.each_with_index do |node, index|
                 vm_id = node['deploy_id']

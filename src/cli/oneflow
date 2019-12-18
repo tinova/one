@@ -707,6 +707,11 @@ CommandParser::CmdParser.new(ARGV) do
             :user_agent => USER_AGENT
         )
 
+        if !/\A\d+\z/.match(args[1])
+            STDERR.puts("Invalid '#{args[1]}' octed permissions")
+            exit(-1)
+        end
+
         Service.perform_actions(args[0]) do |service_id|
             params = {}
             params['octet'] = args[1]
