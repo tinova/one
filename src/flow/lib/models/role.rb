@@ -97,6 +97,9 @@ module OpenNebula
             'DOWN' => 1
         }
 
+        # VM information to save in document
+        VM_INFO = %w[ID UID GID UNAME GNAME NAME]
+
         LOG_COMP = 'ROL'
 
         def initialize(body, service)
@@ -420,7 +423,11 @@ module OpenNebula
                 if OpenNebula.is_error?(rc)
                     node['vm_info'] = nil
                 else
-                    node['vm_info'] = vm.to_hash
+                    hash_vm       = vm.to_hash['VM']
+                    vm_info       = {}
+                    vm_info['VM'] = hash_vm.select {|v| VM_INFO.include?(v) }
+
+                    node['vm_info'] = vm_info
                 end
 
                 @body['nodes'] << node
