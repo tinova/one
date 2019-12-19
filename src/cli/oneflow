@@ -40,7 +40,6 @@ require 'cli_helper'
 require 'one_helper/onevm_helper'
 
 require 'json'
-require 'pry'
 
 USER_AGENT = 'CLI'
 
