@@ -65,7 +65,7 @@ class ServiceLCM
         @am.register_action(ACTIONS['DEPLOY'], method('deploy_action'))
         @am.register_action(ACTIONS['DEPLOY_CB'], method('deploy_cb'))
         @am.register_action(ACTIONS['DEPLOY_FAILURE_CB'], method('deploy_failure_cb'))
-        @am.register_action(ACTIONS['UNDEPLOY'], method('undeploy_action'))
+        # @am.register_action(ACTIONS['UNDEPLOY'], method('_undeploy_action'))
         @am.register_action(ACTIONS['UNDEPLOY_CB'], method('undeploy_cb'))
         @am.register_action(ACTIONS['UNDEPLOY_FAILURE_CB'], method('undeploy_failure_cb'))
         @am.register_action(ACTIONS['SCALE'], method('scale_action'))
@@ -99,6 +99,8 @@ class ServiceLCM
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
     end
 
     def chmod_action(client, service_id, octet)
@@ -111,6 +113,8 @@ class ServiceLCM
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
     end
 
     def rename_action(client, service_id, new_name)
@@ -123,6 +127,8 @@ class ServiceLCM
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
     end
 
     def sched_action(client, service_id, role_name, action, period, number)
@@ -137,6 +143,52 @@ class ServiceLCM
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
+    end
+
+    def undeploy_action(client, service_id)
+        rc = @srv_pool.get(service_id, client) do |service|
+            if service.can_undeploy?
+                error_msg = 'Service cannot be undeployed in state: ' \
+                            "#{service.state_str}"
+                Log.error LOG_COMP, error_msg
+                break OpenNebula::Error.new(error_msg)
+            end
+
+            @am.trigger_action(:undeploy, service.id, client, service.id)
+
+            set_deploy_strategy(service)
+
+            roles = service.roles_shutdown
+
+            if roles.empty?
+                if service.all_roles_done?
+                    service.set_state(Service::STATE['DONE'])
+                    service.update
+                end
+                # If there is no node which needs to be shutdown the service is not modified.
+                break
+            end
+
+            rc = undeploy_roles(client,
+                                roles,
+                                'UNDEPLOYING',
+                                'FAILED_UNDEPLOYING',
+                                false)
+
+            if rc
+                service.set_state(Service::STATE['UNDEPLOYING'])
+            else
+                service.set_state(Service::STATE['FAILED_UNDEPLOYING'])
+            end
+
+            service.update
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
     end
 
     private
@@ -183,48 +235,6 @@ class ServiceLCM
                 service.set_state(Service::STATE['DEPLOYING'])
             else
                 service.set_state(Service::STATE['FAILED_DEPLOYING'])
-            end
-
-            service.update
-        end
-
-        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
-    end
-
-    def undeploy_action(client, service_id)
-        rc = @srv_pool.get(service_id, client) do |service|
-            set_deploy_strategy(service)
-
-            if (service.transient_state? &&
-                service.state != Service::STATE['UNDEPLOYING']) ||
-               service.state == Service::STATE['DONE'] ||
-               service.failed_state?
-                Log.error LOG_COMP, 'Service cannot be undeployed in '\
-                                    "state: #{service.state_str}"
-                break
-            end
-
-            roles = service.roles_shutdown
-
-            if roles.empty?
-                if service.all_roles_done?
-                    service.set_state(Service::STATE['DONE'])
-                    service.update
-                end
-                # If there is no node which needs to be shutdown the service is not modified.
-                break
-            end
-
-            rc = undeploy_roles(client,
-                                roles,
-                                'UNDEPLOYING',
-                                'FAILED_UNDEPLOYING',
-                                false)
-
-            if rc
-                service.set_state(Service::STATE['UNDEPLOYING'])
-            else
-                service.set_state(Service::STATE['FAILED_UNDEPLOYING'])
             end
 
             service.update

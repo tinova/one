@@ -111,6 +111,14 @@ module OpenNebula
             FAILED_STATES.include? STATE_STR[state]
         end
 
+        # Return true if the service can be undeployed
+        # @return true if the service can be undeployed, false otherwise
+        def can_undeploy?
+            (transient_state? && state != Service::STATE['UNDEPLOYING']) ||
+            state == Service::STATE['DONE'] ||
+            failed_state?
+        end
+
         def can_recover_deploy?
             RECOVER_DEPLOY_STATES.include? STATE_STR[state]
         end

@@ -137,6 +137,24 @@ def internal_error(error_msg, error_code)
     body error_msg
 end
 
+# Get HTTP error code based on OpenNebula eror code
+#
+# @param error [Integer] OpenNebula error code
+def one_error_to_http(error)
+    case error
+    when OpenNebula::Error::ESUCCESS
+        200
+    when OpenNebula::Error::EAUTHORIZATION
+        401
+    when OpenNebula::Error::EAUTHENTICATION
+        403
+    when OpenNebula::Error::ENO_EXISTS
+        404
+    else
+        500
+    end
+end
+
 ##############################################################################
 # Defaults
 ##############################################################################
@@ -204,7 +222,11 @@ delete '/service/:id' do
     end
 
     # Starts service undeploying async
-    lcm.am.trigger_action(:undeploy, service.id, @client, service.id)
+    rc = lcm.undeploy_action(@client, service.id)
+
+    if OpenNebula.is_error?(rc)
+        return internal_error(rc.message, one_error_to_http(rc.errno))
+    end
 
     status 204
 end
@@ -225,7 +247,7 @@ post '/service/:id/action' do
             u_id = opts['owner_id'].to_i
             g_id = (opts['group_id'] || -1).to_i
 
-            lcm.chown_action(@client, params[:id], u_id, g_id)
+            rc = lcm.chown_action(@client, params[:id], u_id, g_id)
         else
             OpenNebula::Error.new("Action #{action['perform']}: " \
                                   'You have to specify a UID')
@@ -234,21 +256,21 @@ post '/service/:id/action' do
         if opts && opts['group_id']
             g_id = opts['group_id'].to_i
 
-            lcm.chown_action(@client, params[:id], -1, g_id)
+            rc = lcm.chown_action(@client, params[:id], -1, g_id)
         else
             OpenNebula::Error.new("Action #{action['perform']}: " \
                                   'You have to specify a GID')
         end
     when 'chmod'
         if opts && opts['octet']
-            lcm.chmod_action(@client, params[:id], opts['octet'])
+            rc = lcm.chmod_action(@client, params[:id], opts['octet'])
         else
             OpenNebula::Error.new("Action #{action['perform']}: " \
                                   'You have to specify an OCTET')
         end
     when 'rename'
         if opts && opts['name']
-            lcm.rename_action(@client, params[:id], opts['name'])
+            rc = lcm.rename_action(@client, params[:id], opts['name'])
         else
             OpenNebula::Error.new("Action #{action['perform']}: " \
                                   'You have to specify a name')
@@ -275,6 +297,10 @@ post '/service/:id/action' do
         end
     else
         OpenNebula::Error.new("Action #{action['perform']} not supported")
+    end
+
+    if OpenNebula.is_error?(rc)
+        return internal_error(rc.message, one_error_to_http(rc.errno))
     end
 
     status 204
@@ -313,12 +339,16 @@ post '/service/:id/role/:role_name/action' do
         opts['number'] = conf[:action_number] if opts['number'].nil?
     end
 
-    lcm.sched_action(@client,
-                     params[:id],
-                     params[:role_name],
-                     action['perform'],
-                     opts['period'],
-                     opts['number'])
+    rc = lcm.sched_action(@client,
+                          params[:id],
+                          params[:role_name],
+                          action['perform'],
+                          opts['period'],
+                          opts['number'])
+
+    if OpenNebula.is_error?(rc)
+        return internal_error(rc.message, one_error_to_http(rc.errno))
+    end
 
     status 201
 end
