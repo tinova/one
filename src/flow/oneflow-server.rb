@@ -454,7 +454,10 @@ post '/service_template/:id/action' do
         # Check custom_attrs
         body         = service_json['DOCUMENT']['TEMPLATE']['BODY']
         custom_attrs = body['custom_attrs']
-        custom_attrs_values = merge_template['custom_attrs_values']
+
+        if merge_template
+            custom_attrs_values = merge_template['custom_attrs_values']
+        end
 
         if custom_attrs && !(custom_attrs.is_a? Hash)
             return internal_error('Wrong custom_attrs format',
@@ -466,7 +469,9 @@ post '/service_template/:id/action' do
                                   VALIDATION_EC)
         end
 
-        if !(custom_attrs.keys - custom_attrs_values.keys).empty?
+        if custom_attrs &&
+           custom_attrs_values &&
+           !(custom_attrs.keys - custom_attrs_values.keys).empty?
             return internal_error('Every custom_attrs key must have its ' \
                                   'value defined at custom_attrs_value',
                                   VALIDATION_EC)
@@ -474,7 +479,7 @@ post '/service_template/:id/action' do
 
         # Check networks
         networks = body['networks']
-        networks_values = merge_template['networks_values']
+        networks_values = merge_template['networks_values'] if merge_template
 
         if networks && !(networks.is_a? Hash)
             return internal_error('Wrong networks format', VALIDATION_EC)
@@ -484,7 +489,7 @@ post '/service_template/:id/action' do
             return internal_error('Wrong networks_values format', VALIDATION_EC)
         end
 
-        if !(networks.keys -
+        if networks && networks_values && !(networks.keys -
             networks_values.collect {|i| i.keys }.flatten).empty?
             return internal_error('Every network key must have its value ' \
                                   'defined at networks_value', VALIDATION_EC)

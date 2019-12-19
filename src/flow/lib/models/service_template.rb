@@ -271,27 +271,23 @@ module OpenNebula
 
         def instantiate(merge_template)
             rc = nil
-            service = nil
 
             if merge_template.nil?
-                service = OpenNebula::Service.new(OpenNebula::Service.build_xml,
-                                                  @client)
-
-                rc = service.allocate(instantiate_template_json)
+                instantiate_template = JSON.parse(@body.to_json)
             else
-                begin
-                    instantiate_template = JSON.parse(@body.to_json)
-                                               .merge(merge_template)
+                instantiate_template = JSON.parse(@body.to_json)
+                                           .merge(merge_template)
+            end
 
-                    ServiceTemplate.validate(instantiate_template)
+            begin
+                ServiceTemplate.validate(instantiate_template)
 
-                    service = OpenNebula::Service
-                              .new(OpenNebula::Service.build_xml, @client)
+                xml     = OpenNebula::Service.build_xml
+                service = OpenNebula::Service.new(xml, @client)
 
-                    rc = service.allocate(instantiate_template.to_json)
-                rescue Validator::ParseException, JSON::ParserError => e
-                    return e
-                end
+                rc = service.allocate(instantiate_template.to_json)
+            rescue Validator::ParseException, JSON::ParserError => e
+                return e
             end
 
             return rc if OpenNebula.is_error?(rc)

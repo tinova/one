@@ -343,7 +343,7 @@ class ServiceLCM
             if service.all_roles_done?
                 rc = service.delete_networks
 
-                if !rc.empty?
+                if rc && !rc.empty?
                     Log.info LOG_COMP, 'Error trying to delete '\
                                       "Virtual Networks #{rc}"
                 end

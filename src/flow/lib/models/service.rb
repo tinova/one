@@ -57,7 +57,7 @@ module OpenNebula
             SCALING
         ]
 
-        FAILED_STATE = %w[
+        FAILED_STATES = %w[
             FAILED_DEPLOYING
             FAILED_UNDEPLOYING
             FAILED_SCALING
@@ -514,6 +514,9 @@ module OpenNebula
 
         def deploy_networks
             body = JSON.parse(self['TEMPLATE/BODY'])
+
+            return if body['networks_values'].nil?
+
             body['networks_values'].each do |net|
                 rc = create_vnet(net) if net[net.keys[0]].key?('template_id')
 
@@ -539,6 +542,8 @@ module OpenNebula
         def delete_networks
             vnets = @body['networks_values']
             vnets_failed = []
+
+            return if vnets.nil?
 
             vnets.each do |vnet|
                 next unless vnet[vnet.keys[0]].key?('template_id') ||
