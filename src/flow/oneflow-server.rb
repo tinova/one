@@ -204,7 +204,7 @@ delete '/service/:id' do
     end
 
     # Starts service undeploying async
-    lcm.am.trigger_action(:undeploy, service.id, service.id)
+    lcm.am.trigger_action(:undeploy, service.id, @client, service.id)
 
     status 204
 end
@@ -217,7 +217,7 @@ post '/service/:id/action' do
     when 'shutdown'
         service.shutdown
     when 'recover'
-        lcm.am.trigger_action(:recover, params[:id], params[:id])
+        lcm.am.trigger_action(:recover, params[:id], @client, params[:id])
     when 'deploy'
         service.recover
     when 'chown'
@@ -334,6 +334,7 @@ post '/service/:id/scale' do
     # TODO, check valid state and service exist
     lcm.am.trigger_action(:scale,
                           service_id,
+                          @client,
                           service_id,
                           role_name,
                           cardinality,
@@ -505,7 +506,7 @@ post '/service_template/:id/action' do
             return internal_error(service.message, GENERAL_EC)
         else
             # Starts service deployment async
-            lcm.am.trigger_action(:deploy, service.id, service.id)
+            lcm.am.trigger_action(:deploy, service.id, @client, service.id)
 
             service_json = service.nil? ? '' : service.to_json
 

@@ -88,7 +88,7 @@ class EventManager
     # @param [Service] service the service
     # @param [Role] the role which contains the VMs
     # @param [Node] nodes the list of nodes (VMs) to wait for
-    def wait_deploy_action(service_id, role_name, nodes)
+    def wait_deploy_action(client, service_id, role_name, nodes)
         Log.info LOG_COMP, "Waiting #{nodes} to be (ACTIVE, RUNNING)"
         rc = wait(nodes, 'ACTIVE', 'RUNNING')
 
@@ -96,11 +96,13 @@ class EventManager
         if rc[0]
             @lcm.trigger_action(:deploy_cb,
                                 service_id,
+                                client,
                                 service_id,
                                 role_name)
         else
             @lcm.trigger_action(:deploy_failure_cb,
                                 service_id,
+                                client,
                                 service_id,
                                 role_name)
         end
@@ -110,19 +112,21 @@ class EventManager
     # @param [service_id] the service id
     # @param [role_name] the role name of the role which contains the VMs
     # @param [nodes] the list of nodes (VMs) to wait for
-    def wait_undeploy_action(service_id, role_name, nodes)
+    def wait_undeploy_action(client, service_id, role_name, nodes)
         Log.info LOG_COMP, "Waiting #{nodes} to be (DONE, LCM_INIT)"
         rc = wait(nodes, 'DONE', 'LCM_INIT')
 
         if rc[0]
             @lcm.trigger_action(:undeploy_cb,
                                 service_id,
+                                client,
                                 service_id,
                                 role_name,
                                 rc[1])
         else
             @lcm.trigger_action(:undeploy_failure_cb,
                                 service_id,
+                                client,
                                 service_id,
                                 role_name,
                                 rc[1])
@@ -135,7 +139,7 @@ class EventManager
     # @param [Role] the role which contains the VMs
     # @param [Node] nodes the list of nodes (VMs) to wait for
     # @param [Bool] up true if scalling up false otherwise
-    def wait_scaleup_action(service_id, role_name, nodes)
+    def wait_scaleup_action(client, service_id, role_name, nodes)
         Log.info LOG_COMP, "Waiting #{nodes} to be (ACTIVE, RUNNING)"
 
         rc = wait(nodes, 'ACTIVE', 'RUNNING')
@@ -144,17 +148,19 @@ class EventManager
         if rc[0]
             @lcm.trigger_action(:scaleup_cb,
                                 service_id,
+                                client,
                                 service_id,
                                 role_name)
         else
             @lcm.trigger_action(:scaleup_failure_cb,
                                 service_id,
+                                client,
                                 service_id,
                                 role_name)
         end
     end
 
-    def wait_scaledown_action(service_id, role_name, nodes)
+    def wait_scaledown_action(client, service_id, role_name, nodes)
         Log.info LOG_COMP, "Waiting #{nodes} to be (DONE, LCM_INIT)"
 
         rc = wait(nodes, 'DONE', 'LCM_INIT')
@@ -163,12 +169,14 @@ class EventManager
         if rc[0]
             @lcm.trigger_action(:scaledown_cb,
                                 service_id,
+                                client,
                                 service_id,
                                 role_name,
                                 rc[1])
         else
             @lcm.trigger_action(:scaledown_failure_cb,
                                 service_id,
+                                client,
                                 service_id,
                                 role_name,
                                 rc[1])
@@ -179,13 +187,17 @@ class EventManager
     # @param [service_id] the service id
     # @param [role_name] the role name of the role which contains the VMs
     # @param [nodes] the list of nodes (VMs) to wait for
-    def wait_cooldown(service_id, role_name, cooldown_time)
+    def wait_cooldown(client, service_id, role_name, cooldown_time)
         Log.info LOG_COMP, "Waiting #{cooldown_time}s for cooldown for " \
                            "service #{service_id} and role #{role_name}."
 
         sleep cooldown_time
 
-        @lcm.trigger_action(:cooldown_cb, service_id, service_id, role_name)
+        @lcm.trigger_action(:cooldown_cb,
+                            service_id,
+                            client,
+                            service_id,
+                            role_name)
     end
 
     private

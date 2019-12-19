@@ -145,6 +145,8 @@ def list_services(client, options)
             array_list = JSON.parse(response.body)
             array_list = array_list['DOCUMENT_POOL']['DOCUMENT']
 
+            array_list = [] if array_list.nil?
+
             if options.key? :no_done
                 # remove from list flows in DONE state
                 array_list.reject! do |value|
