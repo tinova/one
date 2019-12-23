@@ -236,8 +236,6 @@ post '/service/:id/action' do
     opts   = action['params']
 
     case action['perform']
-    when 'shutdown'
-        service.shutdown
     when 'recover'
         lcm.am.trigger_action(:recover, params[:id], @client, params[:id])
     when 'deploy'

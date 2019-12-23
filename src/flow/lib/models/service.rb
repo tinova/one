@@ -257,23 +257,6 @@ module OpenNebula
             super(template.to_json, template['name'])
         end
 
-        # Shutdown the service. This action is called when user wants to
-        # shutdwon the Service
-        # @return [nil, OpenNebula::Error] nil in case of success, Error
-        #   otherwise
-        def shutdown
-            if ![Service::STATE['FAILED_SCALING'],
-                 Service::STATE['DONE']].include?(state)
-
-                set_state(Service::STATE['UNDEPLOYING'])
-
-                update
-            else
-                OpenNebula::Error.new('Action shutdown: Wrong state' \
-                                      " #{state_str}")
-            end
-        end
-
         # Recover a failed service.
         # @return [nil, OpenNebula::Error] nil in case of success, Error
         #   otherwise
