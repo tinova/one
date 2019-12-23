@@ -146,7 +146,7 @@ def list_services(client, options)
 
             array_list = [] if array_list.nil?
 
-            if options.key? :no_done
+            unless options.key? :done
                 # remove from list flows in DONE state
                 array_list.reject! do |value|
                     value['TEMPLATE']['BODY']['state'] == 5
@@ -359,10 +359,10 @@ CommandParser::CmdParser.new(ARGV) do
     set :option, CommandParser::VERSION
     set :option, CommandParser::HELP
 
-    NO_DONE = {
-        :name => 'no_done',
-        :large => '--no-done',
-        :description => 'Do not show services in DONE state'
+    DONE = {
+        :name => 'done',
+        :large => '--done',
+        :description => 'Show services in DONE state'
     }
 
     #
@@ -402,7 +402,7 @@ CommandParser::CmdParser.new(ARGV) do
         List the available services
     EOT
 
-    command :list, list_desc, :options => [Service::JSON_FORMAT, NO_DONE] do
+    command :list, list_desc, :options => [Service::JSON_FORMAT, DONE] do
         client = Service::Client.new(
             :username => options[:username],
             :password => options[:password],
@@ -445,7 +445,7 @@ CommandParser::CmdParser.new(ARGV) do
             :options => [Service::JSON_FORMAT,
                          Service::TOP,
                          CLIHelper::DELAY,
-                         NO_DONE] do
+                         DONE] do
         client = Service::Client.new(
             :username => options[:username],
             :password => options[:password],
