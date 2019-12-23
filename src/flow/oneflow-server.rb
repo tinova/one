@@ -179,7 +179,7 @@ GENERAL_EC    = 500 # general error
 ##############################################################################
 
 # TODO: make thread number configurable?
-lcm = ServiceLCM.new(10, cloud_auth)
+lcm = ServiceLCM.new(@client, 10, cloud_auth)
 
 ##############################################################################
 # Service
@@ -237,9 +237,7 @@ post '/service/:id/action' do
 
     case action['perform']
     when 'recover'
-        lcm.am.trigger_action(:recover, params[:id], @client, params[:id])
-    when 'deploy'
-        service.recover
+        rc = lcm.recover_action(@client, params[:id])
     when 'chown'
         if opts && opts['owner_id']
             u_id = opts['owner_id'].to_i
@@ -247,8 +245,8 @@ post '/service/:id/action' do
 
             rc = lcm.chown_action(@client, params[:id], u_id, g_id)
         else
-            OpenNebula::Error.new("Action #{action['perform']}: " \
-                                  'You have to specify a UID')
+            rc = OpenNebula::Error.new("Action #{action['perform']}: " \
+                                       'You have to specify a UID')
         end
     when 'chgrp'
         if opts && opts['group_id']
@@ -256,23 +254,24 @@ post '/service/:id/action' do
 
             rc = lcm.chown_action(@client, params[:id], -1, g_id)
         else
-            OpenNebula::Error.new("Action #{action['perform']}: " \
-                                  'You have to specify a GID')
+            rc = OpenNebula::Error.new("Action #{action['perform']}: " \
+                                       'You have to specify a GID')
         end
     when 'chmod'
         if opts && opts['octet']
             rc = lcm.chmod_action(@client, params[:id], opts['octet'])
         else
-            OpenNebula::Error.new("Action #{action['perform']}: " \
-                                  'You have to specify an OCTET')
+            rc = OpenNebula::Error.new("Action #{action['perform']}: " \
+                                       'You have to specify an OCTET')
         end
     when 'rename'
         if opts && opts['name']
             rc = lcm.rename_action(@client, params[:id], opts['name'])
         else
-            OpenNebula::Error.new("Action #{action['perform']}: " \
-                                  'You have to specify a name')
+            rc = OpenNebula::Error.new("Action #{action['perform']}: " \
+                                       'You have to specify a name')
         end
+=begin
     when 'update'
         if opts && opts['append']
             if opts['template_json']
@@ -293,8 +292,9 @@ post '/service/:id/action' do
             OpenNebula::Error.new("Action #{action['perform']}: " \
                                   'Only supported for append')
         end
+=end
     else
-        OpenNebula::Error.new("Action #{action['perform']} not supported")
+        rc = OpenNebula::Error.new("Action #{action['perform']} not supported")
     end
 
     if OpenNebula.is_error?(rc)
@@ -304,6 +304,7 @@ post '/service/:id/action' do
     status 204
 end
 
+=begin
 put '/service/:id/role/:name' do
     service_pool = nil # OpenNebula::ServicePool.new(@client)
 
@@ -326,6 +327,7 @@ put '/service/:id/role/:name' do
 
     status 204
 end
+=end
 
 post '/service/:id/role/:role_name/action' do
     action = JSON.parse(request.body.read)['action']
@@ -354,19 +356,15 @@ end
 post '/service/:id/scale' do
     call_body = JSON.parse(request.body.read)
 
-    service_id  = params[:id]
-    role_name   = call_body['role_name']
-    cardinality = call_body['cardinality'].to_i
-    force       = call_body['force']
+    rc = lcm.scale_action(@client,
+                          params[:id],
+                          call_body['role_name'],
+                          call_body['cardinality'].to_i,
+                          call_body['force'])
 
-    # TODO, check valid state and service exist
-    lcm.am.trigger_action(:scale,
-                          service_id,
-                          @client,
-                          service_id,
-                          role_name,
-                          cardinality,
-                          force)
+    if OpenNebula.is_error?(rc)
+        return internal_error(rc.message, one_error_to_http(rc.errno))
+    end
 
     status 201
     body
@@ -469,12 +467,12 @@ post '/service_template/:id/action' do
     # rubocop:disable Style/ConditionalAssignment
     # rubocop:disable Layout/CaseIndentation
     # rubocop:disable Layout/EndAlignment
-    rc = case action['perform']
+    case action['perform']
     when 'instantiate'
         rc = service_template.info
 
         if OpenNebula.is_error?(rc)
-            error CloudServer::HTTP_ERROR_CODE[rc.errno], rc.message
+            return internal_error(rc.message, one_error_to_http(rc.errno))
         end
 
         merge_template = opts['merge_template']
@@ -528,13 +526,18 @@ post '/service_template/:id/action' do
         service = service_template.instantiate(merge_template)
 
         if OpenNebula.is_error?(service)
-            error CloudServer::HTTP_ERROR_CODE[service.errno], service.message
+            return internal_error(service.message,
+                                  one_error_to_http(service.errno))
         elsif service.is_a? StandardError
             # there was a JSON validation error
             return internal_error(service.message, GENERAL_EC)
         else
             # Starts service deployment async
-            lcm.am.trigger_action(:deploy, service.id, @client, service.id)
+            rc = lcm.deploy_action(@client, service.id)
+
+            if OpenNebula.is_error?(rc)
+                return internal_error(rc.message, one_error_to_http(rc.errno))
+            end
 
             service_json = service.nil? ? '' : service.to_json
 

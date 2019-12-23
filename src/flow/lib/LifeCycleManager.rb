@@ -26,16 +26,6 @@ class ServiceLCM
     LOG_COMP = 'LCM'
 
     ACTIONS = {
-        # Actions
-        'DEPLOY'   => :deploy,
-        'UNDEPLOY' => :undeploy,
-        'SCALE'    => :scale,
-        'RECOVER'  => :recover,
-        # 'CHOWN'    => :chown,
-        # 'CHMOD'    => :chmod,
-        # 'RENAME'   => :rename,
-        # 'SCHED'    => :sched,
-
         # Callbacks
         'DEPLOY_CB'            => :deploy_cb,
         'DEPLOY_FAILURE_CB'    => :deploy_failure_cb,
@@ -48,10 +38,10 @@ class ServiceLCM
         'SCALEDOWN_FAILURE_CB' => :scaledown_failure_cb
     }
 
-    def initialize(concurrency, cloud_auth)
+    def initialize(client, concurrency, cloud_auth)
         @cloud_auth = cloud_auth
-        @am = ActionManager.new(concurrency, true)
-        @srv_pool = ServicePool.new(@cloud_auth, nil)
+        @am         = ActionManager.new(concurrency, true)
+        @srv_pool   = ServicePool.new(@cloud_auth, nil)
 
         em_conf = {
             :cloud_auth  => @cloud_auth,
@@ -62,40 +52,41 @@ class ServiceLCM
         @event_manager = EventManager.new(em_conf).am
 
         # Register Action Manager actions
-        @am.register_action(ACTIONS['DEPLOY'], method('deploy_action'))
-        @am.register_action(ACTIONS['DEPLOY_CB'], method('deploy_cb'))
-        @am.register_action(ACTIONS['DEPLOY_FAILURE_CB'], method('deploy_failure_cb'))
-        # @am.register_action(ACTIONS['UNDEPLOY'], method('_undeploy_action'))
-        @am.register_action(ACTIONS['UNDEPLOY_CB'], method('undeploy_cb'))
-        @am.register_action(ACTIONS['UNDEPLOY_FAILURE_CB'], method('undeploy_failure_cb'))
-        @am.register_action(ACTIONS['SCALE'], method('scale_action'))
-        @am.register_action(ACTIONS['SCALEUP_CB'], method('scaleup_cb'))
-        @am.register_action(ACTIONS['SCALEUP_FAILURE_CB'], method('scaleup_failure_cb'))
-        @am.register_action(ACTIONS['SCALEDOWN_CB'], method('scaledown_cb'))
-        @am.register_action(ACTIONS['SCALEDOWN_FAILURE_CB'], method('scaledown_failure_cb'))
-        @am.register_action(ACTIONS['COOLDOWN_CB'], method('cooldown_cb'))
-        @am.register_action(ACTIONS['RECOVER'], method('recover_action'))
-        # @am.register_action(ACTIONS['CHOWN'], method('chown_action'))
-        # @am.register_action(ACTIONS['CHMOD'], method('chmod_action'))
-        # @am.register_action(ACTIONS['RENAME'], method('rename_action'))
-        # @am.register_action(ACTIONS['SCHED'], method('sched_action'))
+        @am.register_action(ACTIONS['DEPLOY_CB'],
+                            method('deploy_cb'))
+        @am.register_action(ACTIONS['DEPLOY_FAILURE_CB'],
+                            method('deploy_failure_cb'))
+        @am.register_action(ACTIONS['UNDEPLOY_CB'],
+                            method('undeploy_cb'))
+        @am.register_action(ACTIONS['UNDEPLOY_FAILURE_CB'],
+                            method('undeploy_failure_cb'))
+        @am.register_action(ACTIONS['SCALEUP_CB'],
+                            method('scaleup_cb'))
+        @am.register_action(ACTIONS['SCALEUP_FAILURE_CB'],
+                            method('scaleup_failure_cb'))
+        @am.register_action(ACTIONS['SCALEDOWN_CB'],
+                            method('scaledown_cb'))
+        @am.register_action(ACTIONS['SCALEDOWN_FAILURE_CB'],
+                            method('scaledown_failure_cb'))
+        @am.register_action(ACTIONS['COOLDOWN_CB'],
+                            method('cooldown_cb'))
 
         Thread.new { @am.start_listener }
 
-        Thread.new { catch_up }
+        Thread.new { catch_up(client) }
     end
 
-    ############################################################################
-    # Directly executed actions
-    ############################################################################
-
+    # Change service ownership
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    # @param u_id       [Integer]            User ID
+    # @param g_id       [Integer]            Group ID
+    #
+    # @return [OpenNebula::Error] Error if any
     def chown_action(client, service_id, u_id, g_id)
         rc = @srv_pool.get(service_id, client) do |service|
-            rc = service.chown(u_id, g_id)
-
-            if OpenNebula.is_error?(rc)
-                rc
-            end
+            service.chown(u_id, g_id)
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
@@ -103,13 +94,16 @@ class ServiceLCM
         rc
     end
 
+    # Change service permissions
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    # @param octet      [Integer]            Permissions in octet format
+    #
+    # @return [OpenNebula::Error] Error if any
     def chmod_action(client, service_id, octet)
         rc = @srv_pool.get(service_id, client) do |service|
-            rc = service.chmod_octet(octet)
-
-            if OpenNebula.is_error?(rc)
-                rc
-            end
+            service.chmod_octet(octet)
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
@@ -117,13 +111,16 @@ class ServiceLCM
         rc
     end
 
+    # Change service name
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    # @param new_name   [String]             New service name
+    #
+    # @return [OpenNebula::Error] Error if any
     def rename_action(client, service_id, new_name)
         rc = @srv_pool.get(service_id, client) do |service|
-            rc = service.rename(new_name)
-
-            if OpenNebula.is_error?(rc)
-                rc
-            end
+            service.rename(new_name)
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
@@ -131,6 +128,16 @@ class ServiceLCM
         rc
     end
 
+    # Add shced action to service role
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    # @param role_name  [String]             Role to add action
+    # @param action     [String]             Action to perform
+    # @param period     [Integer]            When to execute the action
+    # @param number     [Integer]            How many VMs per period
+    #
+    # @return [OpenNebula::Error] Error if any
     def sched_action(client, service_id, role_name, action, period, number)
         rc = @srv_pool.get(service_id, client) do |service|
             role = service.roles[role_name]
@@ -147,53 +154,12 @@ class ServiceLCM
         rc
     end
 
-    def undeploy_action(client, service_id)
-        rc = @srv_pool.get(service_id, client) do |service|
-            if service.can_undeploy?
-                error_msg = 'Service cannot be undeployed in state: ' \
-                            "#{service.state_str}"
-                Log.error LOG_COMP, error_msg
-                break OpenNebula::Error.new(error_msg)
-            end
-
-            set_deploy_strategy(service)
-
-            roles = service.roles_shutdown
-
-            if roles.empty?
-                if service.all_roles_done?
-                    service.set_state(Service::STATE['DONE'])
-                    service.update
-                end
-                # If there is no node which needs to be shutdown the service is not modified.
-                break
-            end
-
-            rc = undeploy_roles(client,
-                                roles,
-                                'UNDEPLOYING',
-                                'FAILED_UNDEPLOYING',
-                                false)
-
-            if rc
-                service.set_state(Service::STATE['UNDEPLOYING'])
-            else
-                service.set_state(Service::STATE['FAILED_UNDEPLOYING'])
-            end
-
-            service.update
-        end
-
-        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
-
-        rc
-    end
-
-    private
-
-    ############################################################################
-    # AM Actions
-    ############################################################################
+    # Create new service
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    #
+    # @return [OpenNebula::Error] Error if any
     def deploy_action(client, service_id)
         rc = @srv_pool.get(service_id, client) do |service|
             # Create vnets only first time action is called
@@ -201,11 +167,10 @@ class ServiceLCM
                 rc = service.deploy_networks
 
                 if OpenNebula.is_error?(rc)
-                    Log.error LOG_COMP, rc.message
                     service.set_state(Service::STATE['FAILED_DEPLOYING'])
                     service.update
 
-                    break
+                    break rc
                 end
             end
 
@@ -219,6 +184,7 @@ class ServiceLCM
                     service.set_state(Service::STATE['RUNNING'])
                     service.update
                 end
+
                 # If there is no node in PENDING the service is not modified.
                 break
             end
@@ -229,32 +195,94 @@ class ServiceLCM
                               'FAILED_DEPLOYING',
                               false)
 
-            if rc
+            if !OpenNebula.is_error?(rc)
                 service.set_state(Service::STATE['DEPLOYING'])
             else
                 service.set_state(Service::STATE['FAILED_DEPLOYING'])
             end
 
             service.update
+
+            rc
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
     end
 
+    # Delete service
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    #
+    # @return [OpenNebula::Error] Error if any
+    def undeploy_action(client, service_id)
+        rc = @srv_pool.get(service_id, client) do |service|
+            unless service.can_undeploy?
+                break OpenNebula::Error.new(
+                    'Service cannot be undeployed in state: ' \
+                    "#{service.state_str}"
+                )
+            end
+
+            set_deploy_strategy(service)
+
+            roles = service.roles_shutdown
+
+            # If shutdown roles is empty, asume the service is in DONE and exit
+            if roles.empty?
+                if service.all_roles_done?
+                    service.set_state(Service::STATE['DONE'])
+                    service.update
+                end
+
+                break
+            end
+
+            rc = undeploy_roles(client,
+                                roles,
+                                'UNDEPLOYING',
+                                'FAILED_UNDEPLOYING',
+                                false)
+
+            if !OpenNebula.is_error?(rc)
+                service.set_state(Service::STATE['UNDEPLOYING'])
+            else
+                service.set_state(Service::STATE['FAILED_UNDEPLOYING'])
+            end
+
+            service.update
+
+            rc
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
+    end
+
+    # Scale service
+    #
+    # @param client      [OpenNebula::Client] Client executing action
+    # @param service_id  [Integer]            Service ID
+    # @param role_name   [String]             Role to scale
+    # @param cardinality [Integer]            Number of VMs to scale
+    # @param force       [Boolean]            True to force scaling
+    #
+    # @return [OpenNebula::Error] Error if any
     def scale_action(client, service_id, role_name, cardinality, force)
         rc = @srv_pool.get(service_id, client) do |service|
-            if !service.can_scale?
-                Log.error LOG_COMP, 'Failure scaling service. ' \
-                                    'Services cannot be scaled in ' \
-                                    "#{service.state_str} state."
-                break
+            unless service.can_scale?
+                break OpenNebula::Error.new(
+                    "Service cannot be scaled in state: #{service.state_str}"
+                )
             end
 
             role = service.roles[role_name]
 
             if role.nil?
-                Log.error LOG_COMP, "Role #{role_name} not found"
-                break
+                break OpenNebula::Error.new("Role #{role_name} not found")
             end
 
             rc               = nil
@@ -279,40 +307,58 @@ class ServiceLCM
                                     'FAILED_SCALING',
                                     true)
             else
-                break
+                break OpenNebula::Error.new(
+                    "Cardinality of #{role_name} is already at #{cardinality}"
+                )
             end
 
-            if rc
+            if !OpenNebula.is_error?(rc)
                 service.set_state(Service::STATE['SCALING'])
             else
                 service.set_state(Service::STATE['FAILED_SCALING'])
             end
 
             service.update
+
+            rc
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
     end
 
+    # Recover service
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    #
+    # @return [OpenNebula::Error] Error if any
     def recover_action(client, service_id)
         # TODO, kill other proceses? (other recovers)
         rc = @srv_pool.get(service_id, client) do |service|
             if service.can_recover_deploy?
                 recover_deploy(client, service)
             elsif service.can_recover_undeploy?
-                recover_undeploy(clientm service)
+                recover_undeploy(client, service)
             elsif service.can_recover_scale?
                 recover_scale(client, service)
             else
-                break OpenNebula::Error.new('Recover action is not ' \
-                            "available for state #{service.state_str}")
+                break OpenNebula::Error.new(
+                    'Service cannot be recovered in state: ' \
+                    "#{service.state_str}"
+                )
             end
 
             service.update
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
     end
+
+    private
 
     ############################################################################
     # Callbacks
@@ -325,7 +371,13 @@ class ServiceLCM
             if service.all_roles_running?
                 service.set_state(Service::STATE['RUNNING'])
             elsif service.strategy == 'straight'
-                @am.trigger_action(:deploy, service.id, client, service_id)
+                set_deploy_strategy(service)
+
+                deploy_roles(client,
+                             service.roles_deploy,
+                             'DEPLOYING',
+                             'FAILED_DEPLOYING',
+                              false)
             end
 
             service.update
@@ -496,15 +548,13 @@ class ServiceLCM
 
     # Iterate through the services for catching up with the state of each servic
     # used when the LCM starts
-    def catch_up
+    def catch_up(client)
         Log.error LOG_COMP, 'Catching up...'
 
         @srv_pool.info
 
         @srv_pool.each do |service|
-            if service.transient_state?
-                am.trigger_action(:recover, service.id, service.id)
-            end
+            recover_action(client, service.id) if service.transient_state?
         end
     end
 
@@ -529,21 +579,18 @@ class ServiceLCM
     # @param [Role::STATE] error_state new state of the role
     #                      if deployed unsuccessfuly
     def deploy_roles(client, roles, success_state, error_state, scale)
-        action = nil
-
         if scale
             action = :wait_scaleup
         else
             action = :wait_deploy
         end
 
-        roles.each do |_name, role|
+        rc = roles.each do |name, role|
             rc = role.deploy
 
             if !rc[0]
                 role.set_state(Role::STATE[error_state])
-                Log.error LOG_COMP, rc[1]
-                return false
+                break OpenNebula::Error.new("Error deploying role #{name}")
             end
 
             role.set_state(Role::STATE[success_state])
@@ -556,24 +603,22 @@ class ServiceLCM
                                           rc[0])
         end
 
-        true
+        rc
     end
 
     def undeploy_roles(client, roles, success_state, error_state, scale)
-        action = nil
-
         if scale
             action = :wait_scaledown
         else
             action = :wait_undeploy
         end
 
-        roles.each do |_name, role|
+        rc = roles.each do |name, role|
             rc = role.shutdown(false)
 
             if !rc[0]
                 role.set_state(Role::STATE[error_state])
-                break
+                break OpenNebula::Error.new("Error undeploying role #{name}")
             end
 
             role.set_state(Role::STATE[success_state])
@@ -586,6 +631,8 @@ class ServiceLCM
                                           role.name,
                                           rc[0])
         end
+
+        rc
     end
 
     def set_cardinality(role, cardinality, force)

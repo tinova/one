@@ -114,9 +114,11 @@ module OpenNebula
         # Return true if the service can be undeployed
         # @return true if the service can be undeployed, false otherwise
         def can_undeploy?
-            (transient_state? && state != Service::STATE['UNDEPLOYING']) ||
-            state == Service::STATE['DONE'] ||
-            failed_state?
+            if transient_state?
+                state != Service::STATE['UNDEPLOYING']
+            else
+               state != Service::STATE['DONE'] && !failed_state?
+            end
         end
 
         def can_recover_deploy?
