@@ -156,8 +156,6 @@ class ServiceLCM
                 break OpenNebula::Error.new(error_msg)
             end
 
-            @am.trigger_action(:undeploy, service.id, client, service.id)
-
             set_deploy_strategy(service)
 
             roles = service.roles_shutdown
@@ -369,7 +367,13 @@ class ServiceLCM
 
                 service.set_state(Service::STATE['DONE'])
             elsif service.strategy == 'straight'
-                @am.trigger_action(:undeploy, service.id, client, service_id)
+                set_deploy_strategy(service)
+
+                undeploy_roles(client,
+                               service.roles_shutdown,
+                               'UNDEPLOYING',
+                               'FAILED_UNDEPLOYING',
+                               false)
             end
 
             service.update
