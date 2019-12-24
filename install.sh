@@ -1933,7 +1933,9 @@ ONE_CLI_LIB_FILES="src/cli/one_helper/onegroup_helper.rb \
                    src/cli/one_helper/onevcenter_helper.rb \
                    src/cli/one_helper/onemarket_helper.rb \
                    src/cli/one_helper/onevntemplate_helper.rb \
-                   src/cli/one_helper/onehook_helper.rb"
+                   src/cli/one_helper/onehook_helper.rb \
+                   src/cli/one_helper/oneflow_helper.rb \
+                   src/cli/one_helper/oneflowtemplate_helper.rb"
 
 CLI_BIN_FILES="src/cli/onevm \
                src/cli/onehost \

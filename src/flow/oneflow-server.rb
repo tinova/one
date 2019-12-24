@@ -191,7 +191,7 @@ get '/service' do
 
     rc = service_pool.info
     if OpenNebula.is_error?(rc)
-        error CloudServer::HTTP_ERROR_CODE[rc.errno], rc.message
+        return internal_error(rc.message, one_error_to_http(rc.errno))
     end
 
     status 200
@@ -204,7 +204,7 @@ get '/service/:id' do
 
     rc = service.info
     if OpenNebula.is_error?(rc)
-        error CloudServer::HTTP_ERROR_CODE[rc.errno], rc.message
+        return internal_error(rc.message, one_error_to_http(rc.errno))
     end
 
     status 200

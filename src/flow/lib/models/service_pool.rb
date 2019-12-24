@@ -63,9 +63,11 @@ module OpenNebula
 
         def info
             osp = OpenNebulaServicePool.new(client)
-            osp.info
+            rc  = osp.info
 
             @one_pool = osp
+
+            rc
         end
 
         def to_json
