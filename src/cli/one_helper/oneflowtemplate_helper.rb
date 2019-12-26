@@ -19,6 +19,18 @@ require 'one_helper'
 # Oneflow Template command helper
 class OneFlowTemplateHelper < OpenNebulaHelper::OneHelper
 
+    # Get client to make request
+    #
+    # @options [Hash] CLI options
+    def client(options)
+        Service::Client.new(
+            :username => options[:username],
+            :password => options[:password],
+            :url => options[:server],
+            :user_agent => USER_AGENT
+        )
+    end
+
     # Get service template pool
     def format_service_template_pool
         # TODO: config file

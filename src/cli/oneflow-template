@@ -35,6 +35,7 @@ $LOAD_PATH << RUBY_LIB_LOCATION + '/cli'
 
 require 'json'
 require 'English'
+require 'tempfile'
 
 require 'command_parser'
 require 'opennebula/oneflow_client'
@@ -85,14 +86,7 @@ CommandParser::CmdParser.new(ARGV) do
     EOT
 
     command :list, list_desc, :options => Service::JSON_FORMAT do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
-
-        helper.list_service_template_pool(client, options)
+        helper.list_service_template_pool(helper.client(options), options)
     end
 
     ###
@@ -101,20 +95,16 @@ CommandParser::CmdParser.new(ARGV) do
         List the available Service Templates continuously
     EOT
 
-    command :top, top_desc,
+    command :top,
+            top_desc,
             :options => [Service::JSON_FORMAT,
                          Service::TOP,
                          CLIHelper::DELAY] do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
-
         Signal.trap('INT') { exit(-1) }
 
-        helper.top_service_template_pool(client, options)
+        helper.top_service_template_pool(helper.client(options), options)
+
+        0
     end
 
     ###
@@ -124,14 +114,7 @@ CommandParser::CmdParser.new(ARGV) do
     EOT
 
     command :show, show_desc, :templateid, :options => Service::JSON_FORMAT do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
-
-        helper.format_resource(client, args[0], options)
+        helper.format_resource(helper.client(options), args[0], options)
     end
 
     ###
@@ -141,13 +124,7 @@ CommandParser::CmdParser.new(ARGV) do
     EOT
 
     command :create, create_desc, :file, :options => Service::JSON_FORMAT do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
-
+        client   = helper.client(options)
         response = client.post(RESOURCE_PATH, File.read(args[0]))
 
         if CloudClient.is_error?(response)
@@ -156,8 +133,8 @@ CommandParser::CmdParser.new(ARGV) do
             if options[:json]
                 [0, response.body]
             else
-                template = JSON.parse(response.body)
-                puts "ID: #{template['DOCUMENT']['ID']}"
+                puts "ID: #{JSON.parse(response.body)['DOCUMENT']['ID']}"
+
                 0
             end
         end
@@ -170,12 +147,7 @@ CommandParser::CmdParser.new(ARGV) do
     EOT
 
     command :delete, delete_desc, [:range, :templateid_list] do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
+        client = helper.client(options)
 
         Service.perform_actions(args[0]) do |template_id|
             client.delete("#{RESOURCE_PATH}/#{template_id}")
@@ -188,24 +160,18 @@ CommandParser::CmdParser.new(ARGV) do
         Instantiate a Service Template
     EOT
 
-    command :instantiate, instantiate_desc, :templateid, [:file, nil],
+    command :instantiate,
+            instantiate_desc,
+            :templateid,
+            [:file, nil],
             :options => [Service::JSON_FORMAT, Service::TOP] do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
-
         params = {}
+        params['merge_template'] = JSON.parse(File.read(args[1])) if args[1]
 
-        if args[1]
-            params['merge_template'] = JSON.parse(File.read(args[1]))
-        end
+        json   = Service.build_json_action('instantiate', params)
+        client = helper.client(options)
 
-        json_str = Service.build_json_action('instantiate', params)
-
-        response = client.post("#{RESOURCE_PATH}/#{args[0]}/action", json_str)
+        response = client.post("#{RESOURCE_PATH}/#{args[0]}/action", json)
 
         if CloudClient.is_error?(response)
             [response.code.to_i, response.to_s]
@@ -213,8 +179,8 @@ CommandParser::CmdParser.new(ARGV) do
             if options[:json]
                 [0, response.body]
             else
-                template = JSON.parse(response.body)
-                puts "ID: #{template['DOCUMENT']['ID']}"
+                puts "ID: #{JSON.parse(response.body)['DOCUMENT']['ID']}"
+
                 0
             end
         end
@@ -227,20 +193,15 @@ CommandParser::CmdParser.new(ARGV) do
     EOT
 
     command :chgrp, chgrp_desc, [:range, :templateid_list], :groupid do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
+        client = helper.client(options)
 
         Service.perform_actions(args[0]) do |service_id|
             params = {}
             params['group_id'] = args[1].to_i
 
-            json_action = Service.build_json_action('chgrp', params)
+            json = Service.build_json_action('chgrp', params)
 
-            client.post("#{RESOURCE_PATH}/#{service_id}/action", json_action)
+            client.post("#{RESOURCE_PATH}/#{service_id}/action", json)
         end
     end
 
@@ -250,23 +211,21 @@ CommandParser::CmdParser.new(ARGV) do
         Changes the service template owner and group
     EOT
 
-    command :chown, chown_desc, [:range, :templateid_list],
-            :userid, [:groupid, nil] do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
+    command :chown,
+            chown_desc,
+            [:range, :templateid_list],
+            :userid,
+            [:groupid, nil] do
+        client = helper.client(options)
 
         Service.perform_actions(args[0]) do |service_id|
             params = {}
             params['owner_id'] = args[1]
             params['group_id'] = args[2] if args[2]
 
-            json_action = Service.build_json_action('chown', params)
+            json = Service.build_json_action('chown', params)
 
-            client.post("#{RESOURCE_PATH}/#{service_id}/action", json_action)
+            client.post("#{RESOURCE_PATH}/#{service_id}/action", json)
         end
     end
 
@@ -277,20 +236,20 @@ CommandParser::CmdParser.new(ARGV) do
     EOT
 
     command :chmod, chmod_desc, [:range, :templateid_list], :octet do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
+        if !/\A\d+\z/.match(args[1])
+            STDERR.puts "Invalid '#{args[1]}' octed permissions"
+            exit(-1)
+        end
+
+        client = helper.client(options)
 
         Service.perform_actions(args[0]) do |service_id|
             params = {}
             params['octet'] = args[1]
 
-            json_action = Service.build_json_action('chmod', params)
+            json = Service.build_json_action('chmod', params)
 
-            client.post("#{RESOURCE_PATH}/#{service_id}/action", json_action)
+            client.post("#{RESOURCE_PATH}/#{service_id}/action", json)
         end
     end
 
@@ -301,20 +260,13 @@ CommandParser::CmdParser.new(ARGV) do
     EOT
 
     command :clone, clone_desc, :templateid, :name do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
-
         params = {}
         params['name'] = args[1]
 
-        json_action = Service.build_json_action('clone', params)
+        json   = Service.build_json_action('clone', params)
+        client = helper.client(options)
 
-        response = client.post("#{RESOURCE_PATH}/#{args[0]}/action",
-                               json_action)
+        response = client.post("#{RESOURCE_PATH}/#{args[0]}/action", json)
 
         if CloudClient.is_error?(response)
             [response.code.to_i, response.to_s]
@@ -322,8 +274,8 @@ CommandParser::CmdParser.new(ARGV) do
             if options[:json]
                 [0, response.body]
             else
-                template = JSON.parse(response.body)
-                puts "ID: #{template['DOCUMENT']['ID']}"
+                puts "ID: #{JSON.parse(response.body)['DOCUMENT']['ID']}"
+
                 0
             end
         end
@@ -336,25 +288,14 @@ CommandParser::CmdParser.new(ARGV) do
     EOT
 
     command :rename, rename_desc, :templateid, :name do
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
+        Service.perform_action(args[0]) do |template_id|
+            params = {}
+            params['name'] = args[1]
 
-        params = {}
-        params['name'] = args[1]
+            json   = Service.build_json_action('rename', params)
+            client = helper.client(options)
 
-        json_action = Service.build_json_action('rename', params)
-
-        response = client.post("#{RESOURCE_PATH}/#{args[0]}/action",
-                               json_action)
-
-        if CloudClient.is_error?(response)
-            [response.code.to_i, response.to_s]
-        else
-            response.code.to_i
+            client.post("#{RESOURCE_PATH}/#{template_id}/action", json)
         end
     end
 
@@ -367,30 +308,23 @@ CommandParser::CmdParser.new(ARGV) do
 
     command :update, update_desc, :templateid, [:file, nil] do
         template_id = args[0]
-        client = Service::Client.new(
-            :username => options[:username],
-            :password => options[:password],
-            :url => options[:server],
-            :user_agent => USER_AGENT
-        )
+        client      = helper.client(options)
 
         if args[1]
             path = args[1]
         else
-            require 'tempfile'
-
-            tmp  = Tempfile.new(template_id.to_s)
-            path = tmp.path
-
             response = client.get("#{RESOURCE_PATH}/#{template_id}")
 
             if CloudClient.is_error?(response)
                 exit_with_code response.code.to_i, response.to_s
             else
-                document_hash = JSON.parse(response.body)
-                template = document_hash['DOCUMENT']['TEMPLATE']['BODY']
+                document = JSON.parse(response.body)['DOCUMENT']
+                template = document['TEMPLATE']['BODY']
 
-                tmp << JSON.pretty_generate(template)
+                tmp  = Tempfile.new(template_id.to_s)
+                path = tmp.path
+
+                tmp.write(JSON.pretty_generate(template))
                 tmp.flush
 
                 if ENV['EDITOR']
@@ -398,10 +332,11 @@ CommandParser::CmdParser.new(ARGV) do
                 else
                     editor_path = OpenNebulaHelper::EDITOR_PATH
                 end
+
                 system("#{editor_path} #{path}")
 
                 unless $CHILD_STATUS.exitstatus.zero?
-                    puts 'Editor not defined'
+                    STDERR.puts 'Editor not defined'
                     exit(-1)
                 end
 
@@ -409,15 +344,13 @@ CommandParser::CmdParser.new(ARGV) do
             end
         end
 
-        exit_code = 0
+        response = client.put("#{RESOURCE_PATH}/#{template_id}",
+                              File.read(path))
 
-        t_str = File.read(path)
-        response = client.put("#{RESOURCE_PATH}/#{template_id}", t_str)
         if CloudClient.is_error?(response)
-            puts response.to_s
-            exit_code = response.code.to_i
+            [response.code.to_i, response.to_s]
+        else
+            0
         end
-
-        exit_code
     end
 end
