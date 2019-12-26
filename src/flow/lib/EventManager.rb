@@ -88,9 +88,14 @@ class EventManager
     # @param [Service] service the service
     # @param [Role] the role which contains the VMs
     # @param [Node] nodes the list of nodes (VMs) to wait for
-    def wait_deploy_action(client, service_id, role_name, nodes)
-        Log.info LOG_COMP, "Waiting #{nodes} to be (ACTIVE, RUNNING)"
-        rc = wait(nodes, 'ACTIVE', 'RUNNING')
+    def wait_deploy_action(client, service_id, role_name, nodes, report)
+        if report
+            Log.info LOG_COMP, "Waiting #{nodes} to report ready"
+            rc = wait_report_ready(nodes)
+        else
+            Log.info LOG_COMP, "Waiting #{nodes} to be (ACTIVE, RUNNING)"
+            rc = wait(nodes, 'ACTIVE', 'RUNNING')
+        end
 
         # Todo, check if OneGate confirmation is needed (trigger another action)
         if rc[0]
@@ -208,6 +213,44 @@ class EventManager
 
     def retrieve_id(key)
         key.split('/')[-1].to_i
+    end
+
+    def wait_report_ready(nodes)
+        subscriber = gen_subscriber
+
+        rc_nodes = { :successful => [], :failure => [] }
+
+        return [true, rc_nodes] if nodes.empty?
+
+        subscriber.setsockopt(ZMQ::SUBSCRIBE, 'EVENT API one.vm.update 1')
+
+        content = ''
+
+        until nodes.empty?
+            subscriber.recv_string('')
+            rc = subscriber.recv_string(content)
+
+            if rc == -1 && ZMQ::Util.errno != ZMQ::EAGAIN
+                Log.error LOG_COMP, 'Error reading from subscriber.'
+            elsif rc == -1
+            end
+
+            xml   = Nokogiri::XML(Base64.decode64(content))
+            ready = xml.xpath('//CALL_INFO//PARAMETER[POSITION=3]/VALUE').text
+
+            if ready.match('READY=YES')
+                id = xml.xpath('//PARAMETER[POSITION=2]/VALUE').first.text.to_i
+
+                Log.info LOG_COMP, "Node #{id} reported ready"
+
+                nodes.delete(id)
+                rc_nodes[:successful] << id
+            end
+        end
+
+        subscriber.setsockopt(ZMQ::UNSUBSCRIBE, 'EVENT API one.vm.update 1')
+
+        [true, rc_nodes]
     end
 
     def wait(nodes, state, lcm_state)

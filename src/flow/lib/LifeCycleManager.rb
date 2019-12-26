@@ -193,7 +193,8 @@ class ServiceLCM
                               roles,
                               'DEPLOYING',
                               'FAILED_DEPLOYING',
-                              false)
+                              false,
+                              service.report_ready?)
 
             if !OpenNebula.is_error?(rc)
                 service.set_state(Service::STATE['DEPLOYING'])
@@ -297,7 +298,8 @@ class ServiceLCM
                                   { role_name => role },
                                   'SCALING',
                                   'FAILED_SCALING',
-                                  true)
+                                  true,
+                                  service.report_ready?)
             elsif cardinality_diff < 0
                 role.scale_way('DOWN')
 
@@ -377,7 +379,8 @@ class ServiceLCM
                              service.roles_deploy,
                              'DEPLOYING',
                              'FAILED_DEPLOYING',
-                              false)
+                              false,
+                              service.report_ready?)
             end
 
             service.update
@@ -578,7 +581,7 @@ class ServiceLCM
     #                      if deployed successfuly
     # @param [Role::STATE] error_state new state of the role
     #                      if deployed unsuccessfuly
-    def deploy_roles(client, roles, success_state, error_state, scale)
+    def deploy_roles(client, roles, success_state, error_state, scale, report)
         if scale
             action = :wait_scaleup
         else
@@ -600,7 +603,8 @@ class ServiceLCM
                                           client,
                                           role.service.id,
                                           role.name,
-                                          rc[0])
+                                          rc[0],
+                                          report)
         end
 
         rc
@@ -657,7 +661,8 @@ class ServiceLCM
                                           client,
                                           service.id,
                                           name,
-                                          nodes)
+                                          nodes,
+                                          service.report_ready?)
         end
     end
 

@@ -133,6 +133,10 @@ module OpenNebula
             RECOVER_SCALE_STATES.include? STATE_STR[state]
         end
 
+        def report_ready?
+            @body['ready_status_gate']
+        end
+
         # Sets a new state
         # @param [Integer] the new state
         # @return [true, false] true if the value was changed
