@@ -19,9 +19,21 @@ require 'one_helper'
 # Oneflow command helper
 class OneFlowHelper < OpenNebulaHelper::OneHelper
 
+    # Get client to make request
+    #
+    # @options [Hash] CLI options
+    def client(options)
+        Service::Client.new(
+            :username => options[:username],
+            :password => options[:password],
+            :url => options[:server],
+            :user_agent => USER_AGENT
+        )
+    end
+
     # Get service pool table
     def format_service_pool
-        # TODO config file
+        # TODO: config file
         CLIHelper::ShowTable.new(nil, self) do
             column :ID, 'ID', :size => 10 do |d|
                 d['ID']
@@ -88,7 +100,7 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
     # @param client  [Service::Client] Petition client
     # @param options [Hash]            CLI options
     def top_service_pool(client, options)
-        # TODO make default delay configurable
+        # TODO: make default delay configurable
         options[:delay] ? delay = options[:delay] : delay = 4
 
         begin
@@ -152,7 +164,7 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
 
     # Get nodes pool table
     def format_node_pool
-        # TODO config file
+        # TODO: config file
         CLIHelper::ShowTable.new(nil, self) do
             column :VM_ID,
                    'ONE identifier for Virtual Machine',
@@ -203,7 +215,7 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
             column :GROUP,
                    'Group of the Virtual Machine',
                    :left,
-                   :size => 15  do |d|
+                   :size => 15 do |d|
                 if !d['vm_info'].nil?
                     d['vm_info']['VM']['GNAME']
                 else

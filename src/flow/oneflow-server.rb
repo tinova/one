@@ -271,28 +271,26 @@ post '/service/:id/action' do
             rc = OpenNebula::Error.new("Action #{action['perform']}: " \
                                        'You have to specify a name')
         end
-=begin
-    when 'update'
-        if opts && opts['append']
-            if opts['template_json']
-                begin
-                    service.update(opts['template_json'], true)
-                    status 204
-                rescue Validator::ParseException, JSON::ParserError => e
-                    OpenNebula::Error.new(e.message)
-                end
-            elsif opts['template_raw']
-                service.update_raw(opts['template_raw'], true)
-                status 204
-            else
-                OpenNebula::Error.new("Action #{action['perform']}: " \
-                                      'You have to provide a template')
-            end
-        else
-            OpenNebula::Error.new("Action #{action['perform']}: " \
-                                  'Only supported for append')
-        end
-=end
+    #     when 'update'
+    #         if opts && opts['append']
+    #             if opts['template_json']
+    #                 begin
+    #                     service.update(opts['template_json'], true)
+    #                     status 204
+    #                 rescue Validator::ParseException, JSON::ParserError => e
+    #                     OpenNebula::Error.new(e.message)
+    #                 end
+    #             elsif opts['template_raw']
+    #                 service.update_raw(opts['template_raw'], true)
+    #                 status 204
+    #             else
+    #                 OpenNebula::Error.new("Action #{action['perform']}: " \
+    #                                       'You have to provide a template')
+    #             end
+    #         else
+    #             OpenNebula::Error.new("Action #{action['perform']}: " \
+    #                                   'Only supported for append')
+    #         end
     else
         rc = OpenNebula::Error.new("Action #{action['perform']} not supported")
     end
@@ -304,30 +302,28 @@ post '/service/:id/action' do
     status 204
 end
 
-=begin
-put '/service/:id/role/:name' do
-    service_pool = nil # OpenNebula::ServicePool.new(@client)
-
-    rc = nil
-    service_rc = service_pool.get(params[:id]) do |service|
-        begin
-            rc = service.update_role(params[:name], request.body.read)
-        rescue Validator::ParseException, JSON::ParserError => e
-            return internal_error(e.message, VALIDATION_EC)
-        end
-    end
-
-    if OpenNebula.is_error?(service_rc)
-        error CloudServer::HTTP_ERROR_CODE[service_rc.errno], service_rc.message
-    end
-
-    if OpenNebula.is_error?(rc)
-        error CloudServer::HTTP_ERROR_CODE[rc.errno], rc.message
-    end
-
-    status 204
-end
-=end
+# put '/service/:id/role/:name' do
+#     service_pool = nil # OpenNebula::ServicePool.new(@client)
+#
+#     rc = nil
+#     service_rc = service_pool.get(params[:id]) do |service|
+#         begin
+#             rc = service.update_role(params[:name], request.body.read)
+#         rescue Validator::ParseException, JSON::ParserError => e
+#             return internal_error(e.message, VALIDATION_EC)
+#         end
+#     end
+#
+#     if OpenNebula.is_error?(service_rc)
+#         error CloudServer::HTTP_ERROR_CODE[service_rc.errno], service_rc.message
+#     end
+#
+#     if OpenNebula.is_error?(rc)
+#         error CloudServer::HTTP_ERROR_CODE[rc.errno], rc.message
+#     end
+#
+#     status 204
+# end
 
 post '/service/:id/role/:role_name/action' do
     action = JSON.parse(request.body.read)['action']
@@ -465,8 +461,6 @@ post '/service_template/:id/action' do
     opts   = {} if opts.nil?
 
     # rubocop:disable Style/ConditionalAssignment
-    # rubocop:disable Layout/CaseIndentation
-    # rubocop:disable Layout/EndAlignment
     case action['perform']
     when 'instantiate'
         rc = service_template.info
@@ -613,8 +607,6 @@ post '/service_template/:id/action' do
         OpenNebula::Error.new("Action #{action['perform']} not supported")
     end
     # rubocop:enable Style/ConditionalAssignment
-    # rubocop:enable Layout/CaseIndentation
-    # rubocop:enable Layout/EndAlignment
 
     if OpenNebula.is_error?(rc)
         error CloudServer::HTTP_ERROR_CODE[rc.errno], rc.message

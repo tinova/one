@@ -530,6 +530,11 @@ module OpenNebula
             now         = Time.now.to_i
             time_offset = 0
 
+            # if role is done, return error
+            if state == 5
+                return OpenNebula::Error.new("Role #{name} is in DONE state")
+            end
+
             do_offset = (!period.nil? && period.to_i > 0 &&
                 !vms_per_period.nil? && vms_per_period.to_i > 0)
 

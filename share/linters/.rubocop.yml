@@ -590,6 +590,7 @@ AllCops:
     - src/flow/lib/models.rb
     - src/flow/lib/validator.rb
     - src/flow/lib/strategy/straight.rb
+    - src/flow/lib/EventManager.rb
 
 ########
 # LAYOUT
@@ -620,7 +621,7 @@ Layout/EmptyLinesAroundModuleBody:
 Layout/EmptyLineAfterGuardClause:
     Enabled: true
 
-Layout/AlignHash:
+Layout/HashAlignment:
     Enabled: false
 
 Layout/SpaceAroundOperators:
@@ -740,12 +741,12 @@ Lint/DuplicateCaseCondition:
 Lint/DuplicateMethods:
     Enabled: true
 
-Lint/DuplicatedKey:
+Lint/DuplicateHashKey:
     Enabled: true
 ##
 
 # check empty exceptions
-Lint/HandleExceptions:
+Lint/SuppressedException:
     Enabled: true
 
 # check matching parameters in format
@@ -773,7 +774,7 @@ Metrics/BlockLength:
     Enabled: False
 
 # Line Length config:
-Metrics/LineLength:
+Layout/LineLength:
     Max: 80
 
 Metrics/ModuleLength:
@@ -811,7 +812,7 @@ Naming/ConstantName:
 Naming/HeredocDelimiterNaming:
     Enabled: false
 
-Naming/UncommunicativeMethodParamName:
+Naming/MethodParameterName:
     Enabled: false
 
 ###

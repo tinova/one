@@ -16,11 +16,12 @@
 
 require 'one_helper'
 
+# Oneflow Template command helper
 class OneFlowTemplateHelper < OpenNebulaHelper::OneHelper
 
     # Get service template pool
     def format_service_template_pool
-        # TODO config file
+        # TODO: config file
         CLIHelper::ShowTable.new(nil, self) do
             column :ID, 'ID', :size => 10 do |d|
                 d['ID']
@@ -68,7 +69,7 @@ class OneFlowTemplateHelper < OpenNebulaHelper::OneHelper
     # @param client  [Service::Client] Petition client
     # @param options [Hash]            CLI options
     def top_service_template_pool(client, options)
-        # TODO make default delay configurable
+        # TODO: make default delay configurable
         options[:delay] ? delay = options[:delay] : delay = 4
 
         begin

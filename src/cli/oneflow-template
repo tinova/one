@@ -112,7 +112,6 @@ CommandParser::CmdParser.new(ARGV) do
             :user_agent => USER_AGENT
         )
 
-
         Signal.trap('INT') { exit(-1) }
 
         helper.top_service_template_pool(client, options)
