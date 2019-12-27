@@ -215,44 +215,6 @@ class EventManager
         key.split('/')[-1].to_i
     end
 
-    def wait_report_ready(nodes)
-        subscriber = gen_subscriber
-
-        rc_nodes = { :successful => [], :failure => [] }
-
-        return [true, rc_nodes] if nodes.empty?
-
-        subscriber.setsockopt(ZMQ::SUBSCRIBE, 'EVENT API one.vm.update 1')
-
-        content = ''
-
-        until nodes.empty?
-            subscriber.recv_string('')
-            rc = subscriber.recv_string(content)
-
-            if rc == -1 && ZMQ::Util.errno != ZMQ::EAGAIN
-                Log.error LOG_COMP, 'Error reading from subscriber.'
-            elsif rc == -1
-            end
-
-            xml   = Nokogiri::XML(Base64.decode64(content))
-            ready = xml.xpath('//CALL_INFO//PARAMETER[POSITION=3]/VALUE').text
-
-            if ready.match('READY=YES')
-                id = xml.xpath('//PARAMETER[POSITION=2]/VALUE').first.text.to_i
-
-                Log.info LOG_COMP, "Node #{id} reported ready"
-
-                nodes.delete(id)
-                rc_nodes[:successful] << id
-            end
-        end
-
-        subscriber.setsockopt(ZMQ::UNSUBSCRIBE, 'EVENT API one.vm.update 1')
-
-        [true, rc_nodes]
-    end
-
     def wait(nodes, state, lcm_state)
         subscriber = gen_subscriber
 
@@ -301,6 +263,62 @@ class EventManager
         [true, rc_nodes]
     end
 
+    def wait_report_ready(nodes)
+        subscriber = gen_subscriber
+
+        rc_nodes = { :successful => [], :failure => [] }
+
+        return [true, rc_nodes] if nodes.empty?
+
+        subscriber.setsockopt(ZMQ::SUBSCRIBE, 'EVENT API one.vm.update 1')
+
+        key     = ''
+        content = ''
+
+        until nodes.empty?
+            # TODO check it
+            subscriber.recv_string(key)
+            subscriber.recv_string(key) if key.empty?
+            rc = subscriber.recv_string(content)
+
+            if rc == -1 && ZMQ::Util.errno != ZMQ::EAGAIN || content.empty?
+                next Log.error LOG_COMP, 'Error reading from subscriber.'
+            elsif rc == -1
+                Log.info LOG_COMP, "Timeout reached for VM #{nodes} to report"
+
+                rc = check_nodes_report(nodes)
+
+                rc_nodes[:successful].concat(rc[:successful])
+                rc_nodes[:failure].concat(rc[:failure])
+
+                next if !nodes.empty? && rc_nodes[:failure].empty?
+
+                subscriber.setsockopt(ZMQ::UNSUBSCRIBE,
+                                      'EVENT API one.vm.update 1')
+
+                # If any node is in error wait action will fails
+                return [false, rc_nodes] unless rc_nodes[:failure].empty?
+
+                return [true, rc_nodes] # (nodes.empty? && fail_nodes.empty?)
+            end
+
+            xml   = Nokogiri::XML(Base64.decode64(content))
+            id    = xml.xpath('//PARAMETER[POSITION=2]/VALUE').first.text.to_i
+            ready = xml.xpath('//PARAMETER[POSITION=3]/VALUE').text
+
+            if ready.match('READY=YES') && nodes.include?(id)
+                Log.info LOG_COMP, "Node #{id} reported ready"
+
+                nodes.delete(id)
+                rc_nodes[:successful] << id
+            end
+        end
+
+        subscriber.setsockopt(ZMQ::UNSUBSCRIBE, 'EVENT API one.vm.update 1')
+
+        [true, rc_nodes]
+    end
+
     def check_nodes(nodes, state, lcm_state, subscriber)
         rc_nodes = { :successful => [], :failure => [] }
 
@@ -329,6 +347,39 @@ class EventManager
                 next true
             end
 
+            false
+        end
+
+        rc_nodes
+    end
+
+    def check_nodes_report(nodes)
+        rc_nodes = { :successful => [], :failure => [] }
+        client   = @cloud_auth.client
+
+        nodes.delete_if do |node|
+            vm = OpenNebula::VirtualMachine.new_with_id(node, client)
+
+            vm.info
+
+            vm_lcm_state = OpenNebula::VirtualMachine::LCM_STATE[vm.lcm_state]
+
+            if vm_state['VM/USER_TEMPLATE/READY'] == 'YES'
+                rc_nodes[:successful] << node
+
+                next true
+            end
+
+            # if the VM is in failure, it won't report ready
+            if FAILURE_STATES.include? vm_lcm_state
+                Log.error LOG_COMP, "Node #{node} is in FAILURE state"
+
+                rc_nodes[:failure] << node
+
+                next true
+            end
+
+            # if !READY and VM is not in failure state, keep waiting
             false
         end
 
