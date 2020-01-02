@@ -295,6 +295,7 @@ VAR_DIRS="$VAR_LOCATION/remotes \
           $VAR_LOCATION/remotes/vmm/one \
           $VAR_LOCATION/remotes/vmm/lxd \
           $VAR_LOCATION/remotes/vmm/packet \
+          $VAR_LOCATION/remotes/vmm/firecracker \
           $VAR_LOCATION/remotes/vnm \
           $VAR_LOCATION/remotes/vnm/802.1Q \
           $VAR_LOCATION/remotes/vnm/802.1Q/pre.d \
@@ -478,6 +479,8 @@ INSTALL_FILES=(
     VMM_EXEC_KVM_SCRIPTS:$VAR_LOCATION/remotes/vmm/kvm
     VMM_EXEC_LXD_SCRIPTS:$VAR_LOCATION/remotes/vmm/lxd
     VMM_EXEC_LXD_LIB:$VAR_LOCATION/remotes/vmm/lxd
+    VMM_EXEC_FIRECRACKER_SCRIPTS:$VAR_LOCATION/remotes/vmm/firecracker
+    VMM_EXEC_FIRECRACKER_LIB:$VAR_LOCATION/remotes/vmm/firecracker
     VMM_EXEC_ETC_KVM_SCRIPTS:$VAR_LOCATION/remotes/etc/vmm/kvm
     VMM_EXEC_ETC_LXD_SCRIPTS:$VAR_LOCATION/remotes/etc/vmm/lxd
     VMM_EXEC_VCENTER_SCRIPTS:$VAR_LOCATION/remotes/vmm/vcenter
@@ -904,6 +907,14 @@ VMM_EXEC_LXD_LIB="src/vmm_mad/remotes/lib/lxd/opennebula_vm.rb \
                 src/vmm_mad/remotes/lib/lxd/command.rb \
                 src/vmm_mad/remotes/lib/lxd/container.rb"
 
+#-------------------------------------------------------------------------------
+# VMM SH Driver Firecracker scripts, to be installed under $REMOTES_LOCATION/vmm/firecracker
+#-------------------------------------------------------------------------------
+VMM_EXEC_FIRECRACKER_SCRIPTS="src/vmm_mad/remotes/firecracker/deploy"
+
+VMM_EXEC_FIRECRACKER_LIB="src/vmm_mad/remotes/lib/firecracker/opennebula_vm.rb \
+                src/vmm_mad/remotes/lib/firecracker/client.rb \
+                src/vmm_mad/remotes/lib/firecracker/microvm.rb"
 #-------------------------------------------------------------------------------
 # VMM configuration LXD scripts, to be installed under $REMOTES_LOCATION/etc/vmm/lxd
 #-------------------------------------------------------------------------------

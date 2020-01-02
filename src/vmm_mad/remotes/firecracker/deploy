@@ -1,0 +1,57 @@
+#!/usr/bin/ruby
+
+# -------------------------------------------------------------------------- #
+# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+#                                                                            #
+# Licensed under the Apache License, Version 2.0 (the "License"); you may    #
+# not use this file except in compliance with the License. You may obtain    #
+# a copy of the License at                                                   #
+#                                                                            #
+# http://www.apache.org/licenses/LICENSE-2.0                                 #
+#                                                                            #
+# Unless required by applicable law or agreed to in writing, software        #
+# distributed under the License is distributed on an "AS IS" BASIS,          #
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   #
+# See the License for the specific language governing permissions and        #
+# limitations under the License.                                             #
+#--------------------------------------------------------------------------- #
+
+$LOAD_PATH.unshift File.dirname(__FILE__)
+
+require 'pry'
+require 'microvm'
+
+# ------------------------------------------------------------------------------
+# Action Arguments, STDIN includes XML description of the OpenNebula VM
+# ------------------------------------------------------------------------------
+
+xml_path = ARGV[0]
+vm_id    = ARGV[2]
+
+xml = `cat /tmp/a` # STDIN.read
+
+# ------------------------------------------------------------------------------
+# Prepare environment
+# ------------------------------------------------------------------------------
+#
+# - Gen deployment file (by the core in vm path?)
+# - Make chrot directory (mkdir -p /srv/jailer/firecracker/one-<vm_id>/root/)
+# - Copy (or link) deployment file
+# - Copy (or link) image and kernel to chroot directory (TM_MAD?)
+# - Check file permissions
+# - Start the firecracker process by using the jailer and the deployment file
+#
+client = FirecrackerClient.new("/srv/jailer/firecracker/one-#{vm_id}/root/api.socket")
+microvm = MicroVM.new_from_xml(xml, client)
+
+binding.pry
+
+# Create deployment file into microVM chroot path.
+deployment_file = microvm.deployment_file
+
+File.open("#{microvm.deployment_file_location}/deployment.file", 'w+') do |file|
+    file.write(deployment_file.to_s)
+end
+
+# Create microVM
+microvm.create
