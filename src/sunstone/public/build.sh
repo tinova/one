@@ -32,6 +32,7 @@ install_patch() {
     bower install --force --allow-root --config.interactive=false
 
     cd bower_components/no-vnc/
+    ls -la
     npm install
     ./utils/use_require.js --clean --as amd
     sed -i -e "s/'\.\//'\.\.\/bower_components\/no-vnc\/lib\//g" lib/rfb.js
