@@ -41,7 +41,8 @@ define(function(require) {
     "",
     Locale.tr("Hidden Template"),
     Locale.tr("Labels"),
-    "search_data"
+    "search_data",
+    Locale.tr("Leases") //clock leases
   ];
 
   return {
@@ -49,6 +50,95 @@ define(function(require) {
     'emptyElementArray': _emptyElementArray,
     'columns': _columns
   };
+
+  function checkTime(startTime, addedEndTime, warningTime){
+    var rtn = false;
+    if(startTime && addedEndTime){
+      var regexNumber = new RegExp('[0-9]*$','gm');
+      var date = parseInt(startTime);
+      var added = parseInt(addedEndTime.match(regexNumber)[0]);
+      if(!isNaN(date) && !isNaN(added)){
+        var operator = addedEndTime.replace(regexNumber, "");
+        var finalTime = date;
+        switch (operator) {
+          case '-':
+            finalTime = date - added;
+          break;
+          default:
+            finalTime = date + added;
+          break;
+        }
+        now = new Date();
+        var nowInSeconds = Math.round(parseInt(now.getTime()) / 1000);
+        if(finalTime >= nowInSeconds && warningTime === undefined){
+          rtn = true;
+        }else if(!!warningTime){
+          var warning = parseInt(warningTime.match(regexNumber)[0]);
+          if(!isNaN(warning)){
+            operator = warningTime.replace(regexNumber, "");
+            var wtime = date;
+            switch (operator) {
+              case '-':
+                wtime = finalTime - warning;
+              break;
+              default:
+                wtime = finalTime + warning;
+              break;
+            }
+            if(finalTime >= nowInSeconds && wtime <= nowInSeconds){
+              rtn = true;
+            }
+          }
+        }
+      }
+    }
+    return rtn;
+  }
+
+  function leasesClock(element){
+    var rtn = "";
+    if(
+      element && 
+      element.STIME && 
+      element.USER_TEMPLATE && 
+      element.USER_TEMPLATE.SCHED_ACTION && 
+      config && 
+      config.system_config &&
+      config.system_config.leases
+    ){
+      var actionsArray = [];
+      var actions = element.USER_TEMPLATE.SCHED_ACTION;
+      var leases = config.system_config.leases;
+      if(Array.isArray(element.USER_TEMPLATE.SCHED_ACTION)){
+        actionsArray = actions;
+      }else{
+        actionsArray.push(actions);
+      }
+      actionsArray.some(function(action){
+        if(
+          action && 
+          action.ACTION && 
+          leases && 
+          leases[action.ACTION] &&
+          leases[action.ACTION].time &&
+          !isNaN(parseInt(leases[action.ACTION].time)) &&
+          leases[action.ACTION].color
+        ){
+          if(checkTime(element.STIME, leases[action.ACTION].time)){
+            rtn = $("<i/>",{class:"fa fa-clock"}).css("color",leases[action.ACTION].color);
+            if(leases[action.ACTION].warning && leases[action.ACTION].warning.time && leases[action.ACTION].warning.color){
+              if(checkTime(element.STIME, leases[action.ACTION].time, leases[action.ACTION].warning.time)){
+                rtn.css("color", leases[action.ACTION].warning.color);
+              }
+            }
+            rtn = rtn.prop('outerHTML');
+            return true;
+          }
+        }
+      });
+    }
+    return rtn;
+  }
 
   function _elementArray(element_json) {
     var element = element_json[XML_ROOT];
@@ -85,11 +175,11 @@ define(function(require) {
     var memoryMonitoring = 0;
     if (element.MONITORING) {
       if (element.MONITORING.CPU) {
-        cpuMonitoring = element.MONITORING.CPU
+        cpuMonitoring = element.MONITORING.CPU;
       }
 
       if (element.MONITORING.MEMORY) {
-        memoryMonitoring = element.MONITORING.MEMORY
+        memoryMonitoring = element.MONITORING.MEMORY;
       }
     }
 
@@ -115,11 +205,12 @@ define(function(require) {
       CLUSTER:      OpenNebulaVM.clusterStr(element),
       STIME_AFTER:  element.STIME,
       STIME_BEFORE: element.STIME
-    }
+    };
+
     if (OpenNebulaVM.isFailureState(element.LCM_STATE)){
-      value_state = "FAILED"
+      value_state = "FAILED";
     } else {
-      value_state = OpenNebulaVM.stateStr(element.STATE)
+      value_state = OpenNebulaVM.stateStr(element.STATE);
     }
     var color_html = Status.state_lock_to_color("VM", value_state, element_json[RESOURCE.toUpperCase()]["LOCK"]);
 
@@ -144,7 +235,8 @@ define(function(require) {
       vncIcon,
       TemplateUtils.htmlEncode(TemplateUtils.templateToString(element)),
       (LabelsUtils.labelsStr(element[TEMPLATE_ATTR])||''),
-      btoa(unescape(encodeURIComponent(JSON.stringify(search))))
+      btoa(unescape(encodeURIComponent(JSON.stringify(search)))),
+      leasesClock(element)
     ];
   }
 
@@ -155,6 +247,7 @@ define(function(require) {
                              vmId + '" name="selected_items" value="' +
                              vmId + '"/>',
        vmId,
+       "",
        "",
        "",
        "",
