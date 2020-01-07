@@ -231,7 +231,7 @@ class EventManager
 
         until nodes.empty?
             rc = subscriber.recv_string(key)
-            rc = subscriber.recv_string(content) if rc == 0
+            rc = subscriber.recv_string(content) if rc != -1
 
             if rc == -1 && ZMQ::Util.errno != ZMQ::EAGAIN
                 Log.error LOG_COMP, 'Error reading from subscriber.'
@@ -276,12 +276,10 @@ class EventManager
         content = ''
 
         until nodes.empty?
-            # TODO check it
-            subscriber.recv_string(key)
-            subscriber.recv_string(key) if key.empty?
-            rc = subscriber.recv_string(content)
+            rc = subscriber.recv_string(key)
+            rc = subscriber.recv_string(content) if rc != -1
 
-            if rc == -1 && ZMQ::Util.errno != ZMQ::EAGAIN || content.empty?
+            if rc == -1 && ZMQ::Util.errno != ZMQ::EAGAIN
                 next Log.error LOG_COMP, 'Error reading from subscriber.'
             elsif rc == -1
                 Log.info LOG_COMP, "Timeout reached for VM #{nodes} to report"
@@ -364,7 +362,7 @@ class EventManager
 
             vm_lcm_state = OpenNebula::VirtualMachine::LCM_STATE[vm.lcm_state]
 
-            if vm_state['VM/USER_TEMPLATE/READY'] == 'YES'
+            if vm['VM/USER_TEMPLATE/READY'] == 'YES'
                 rc_nodes[:successful] << node
 
                 next true
