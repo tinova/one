@@ -581,7 +581,6 @@ AllCops:
     - src/flow/lib/models/service_template_pool.rb
     - src/flow/lib/models/service_pool.rb
     - src/flow/lib/models/service_template.rb
-    - src/flow/lib/models/role.rb
     - src/flow/lib/models/service.rb
     - src/flow/lib/strategy.rb
     - src/flow/lib/grammar.rb
