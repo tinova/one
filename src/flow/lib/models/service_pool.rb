@@ -36,8 +36,10 @@ module OpenNebula
     # ServicePool class
     class ServicePool
 
+        # rubocop:disable Style/ClassVars
         @@mutex      = Mutex.new
         @@mutex_hash = {}
+        # rubocop:enable Style/ClassVars
 
         # Class constructor
         #
@@ -49,8 +51,8 @@ module OpenNebula
         def initialize(cloud_auth, client)
             # TODO, what if cloud_auth is nil?
             @cloud_auth = cloud_auth
-            @client = client
-            @one_pool = nil
+            @client     = client
+            @one_pool   = nil
         end
 
         def client
@@ -70,7 +72,9 @@ module OpenNebula
             rc
         end
 
+        # rubocop:disable Lint/ToJSON
         def to_json
+            # rubocop:enable Lint/ToJSON
             @one_pool.to_json
         end
 
