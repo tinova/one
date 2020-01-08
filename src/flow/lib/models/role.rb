@@ -564,6 +564,7 @@ module OpenNebula
             false
         end
 
+        # rubocop:disable Style/ClassVars
         def self.init_default_cooldown(default_cooldown)
             @@default_cooldown = default_cooldown
         end
@@ -579,7 +580,7 @@ module OpenNebula
         def self.init_default_vm_name_template(vm_name_template)
             @@vm_name_template = vm_name_template
         end
-
+        # rubocop:enable Style/ClassVars
 
         ########################################################################
         # Scalability
@@ -589,8 +590,32 @@ module OpenNebula
         # @param [Hash] template
         # @return [nil, OpenNebula::Error] nil in case of success, Error
         #   otherwise
-        def update(_template)
-            raise 'role.update is not defined'
+        def update(template)
+            force = template['force'] == true
+            new_cardinality = template['cardinality']
+
+            return if new_cardinality.nil?
+
+            new_cardinality = new_cardinality.to_i
+
+            if !force
+                if new_cardinality < min_cardinality.to_i
+                    return OpenNebula::Error.new(
+                        "Minimum cardinality is #{min_cardinality}"
+                    )
+
+                elsif !max_cardinality.nil? &&
+                      new_cardinality > max_cardinality.to_i
+                    return OpenNebula::Error.new(
+                        "Maximum cardinality is #{max_cardinality}"
+                    )
+
+                end
+            end
+
+            set_cardinality(new_cardinality)
+
+            nil
         end
 
         ########################################################################

@@ -1,3 +1,4 @@
+# rubocop:disable Naming/FileName
 # -------------------------------------------------------------------------- #
 # Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
@@ -138,7 +139,9 @@ class ServiceLCM
     # @param number     [Integer]            How many VMs per period
     #
     # @return [OpenNebula::Error] Error if any
+    # rubocop:disable Metrics/ParameterLists
     def sched_action(client, service_id, role_name, action, period, number)
+        # rubocop:enable Metrics/ParameterLists
         rc = @srv_pool.get(service_id, client) do |service|
             role = service.roles[role_name]
 
@@ -379,8 +382,8 @@ class ServiceLCM
                              service.roles_deploy,
                              'DEPLOYING',
                              'FAILED_DEPLOYING',
-                              false,
-                              service.report_ready?)
+                             false,
+                             service.report_ready?)
             end
 
             service.update
@@ -443,7 +446,8 @@ class ServiceLCM
             @event_manager.cancel_action(service_id)
 
             service.set_state(Service::STATE['FAILED_UNDEPLOYING'])
-            service.roles[role_name].set_state(Role::STATE['FAILED_UNDEPLOYING'])
+            service.roles[role_name]
+                   .set_state(Role::STATE['FAILED_UNDEPLOYING'])
 
             service.roles[role_name].nodes.delete_if do |node|
                 !nodes[:failure].include?(node['deploy_id']) &&
@@ -581,7 +585,9 @@ class ServiceLCM
     #                      if deployed successfuly
     # @param [Role::STATE] error_state new state of the role
     #                      if deployed unsuccessfuly
+    # rubocop:disable Metrics/ParameterLists
     def deploy_roles(client, roles, success_state, error_state, scale, report)
+        # rubocop:enable Metrics/ParameterLists
         if scale
             action = :wait_scaleup
         else
@@ -627,7 +633,8 @@ class ServiceLCM
 
             role.set_state(Role::STATE[success_state])
 
-            # TODO, take only subset of nodes which needs to be undeployed (new role.nodes_undeployed_ids ?)
+            # TODO, take only subset of nodes which needs to
+            # be undeployed (new role.nodes_undeployed_ids ?)
             @event_manager.trigger_action(action,
                                           role.service.id,
                                           client,
@@ -703,3 +710,4 @@ class ServiceLCM
     end
 
 end
+# rubocop:enable Naming/FileName

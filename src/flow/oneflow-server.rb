@@ -315,7 +315,8 @@ end
 #     end
 #
 #     if OpenNebula.is_error?(service_rc)
-#         error CloudServer::HTTP_ERROR_CODE[service_rc.errno], service_rc.message
+#         error CloudServer::HTTP_ERROR_CODE[service_rc.errno],
+#               service_rc.message
 #     end
 #
 #     if OpenNebula.is_error?(rc)

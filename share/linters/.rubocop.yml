@@ -584,7 +584,6 @@ AllCops:
     - src/flow/lib/models/service.rb
     - src/flow/lib/strategy.rb
     - src/flow/lib/grammar.rb
-    - src/flow/lib/LifeCycleManager.rb
     - src/flow/lib/log.rb
     - src/flow/lib/models.rb
     - src/flow/lib/validator.rb

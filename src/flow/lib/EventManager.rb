@@ -144,10 +144,14 @@ class EventManager
     # @param [Role] the role which contains the VMs
     # @param [Node] nodes the list of nodes (VMs) to wait for
     # @param [Bool] up true if scalling up false otherwise
-    def wait_scaleup_action(client, service_id, role_name, nodes)
-        Log.info LOG_COMP, "Waiting #{nodes} to be (ACTIVE, RUNNING)"
-
-        rc = wait(nodes, 'ACTIVE', 'RUNNING')
+    def wait_scaleup_action(client, service_id, role_name, nodes, report)
+        if report
+            Log.info LOG_COMP, "Waiting #{nodes} to report ready"
+            rc = wait_report_ready(nodes)
+        else
+            Log.info LOG_COMP, "Waiting #{nodes} to be (ACTIVE, RUNNING)"
+            rc = wait(nodes, 'ACTIVE', 'RUNNING')
+        end
 
         # Todo, check if OneGate confirmation is needed (trigger another action)
         if rc[0]
