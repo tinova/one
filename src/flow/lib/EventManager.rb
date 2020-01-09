@@ -1,3 +1,4 @@
+# rubocop:disable Naming/FileName
 # -------------------------------------------------------------------------- #
 # Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
@@ -71,11 +72,17 @@ class EventManager
         @cloud_auth = @conf[:cloud_auth]
 
         # Register Action Manager actions
-        @am.register_action(ACTIONS['WAIT_DEPLOY'], method('wait_deploy_action'))
-        @am.register_action(ACTIONS['WAIT_UNDEPLOY'], method('wait_undeploy_action'))
-        @am.register_action(ACTIONS['WAIT_COOLDOWN'], method('wait_cooldown'))
-        @am.register_action(ACTIONS['WAIT_SCALEUP'], method('wait_scaleup_action'))
-        @am.register_action(ACTIONS['WAIT_SCALEDOWN'], method('wait_scaledown_action'))
+        @am.register_action(ACTIONS['WAIT_DEPLOY'],
+                            method('wait_deploy_action'))
+        @am.register_action(ACTIONS['WAIT_UNDEPLOY'],
+                            method('wait_undeploy_action'))
+        @am.register_action(ACTIONS['WAIT_COOLDOWN'],
+                            method('wait_cooldown'))
+        @am.register_action(ACTIONS['WAIT_SCALEUP'],
+                            method('wait_scaleup_action'))
+        @am.register_action(ACTIONS['WAIT_SCALEDOWN'],
+                            method('wait_scaledown_action'))
+
         Thread.new { @am.start_listener }
     end
 
@@ -283,6 +290,7 @@ class EventManager
             rc = subscriber.recv_string(key)
             rc = subscriber.recv_string(content) if rc != -1
 
+            # rubocop:disable Style/GuardClause
             if rc == -1 && ZMQ::Util.errno != ZMQ::EAGAIN
                 next Log.error LOG_COMP, 'Error reading from subscriber.'
             elsif rc == -1
@@ -304,16 +312,18 @@ class EventManager
                 return [true, rc_nodes] # (nodes.empty? && fail_nodes.empty?)
             end
 
+            # rubocop:enable Style/GuardClause
+
             xml   = Nokogiri::XML(Base64.decode64(content))
             id    = xml.xpath('//PARAMETER[POSITION=2]/VALUE').first.text.to_i
             ready = xml.xpath('//PARAMETER[POSITION=3]/VALUE').text
 
-            if ready.match('READY=YES') && nodes.include?(id)
-                Log.info LOG_COMP, "Node #{id} reported ready"
+            next if !ready.match('READY=YES') || !nodes.include?(id)
 
-                nodes.delete(id)
-                rc_nodes[:successful] << id
-            end
+            Log.info LOG_COMP, "Node #{id} reported ready"
+
+            nodes.delete(id)
+            rc_nodes[:successful] << id
         end
 
         subscriber.setsockopt(ZMQ::UNSUBSCRIBE, 'EVENT API one.vm.update 1')
@@ -416,3 +426,4 @@ class EventManager
     end
 
 end
+# rubocop:enable Naming/FileName

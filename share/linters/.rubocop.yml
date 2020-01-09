@@ -578,13 +578,8 @@ AllCops:
     - src/market_mad/remotes/s3/S3.rb
     - src/market_mad/one_market.rb
     - src/tm_mad/one_tm.rb
-    - src/flow/lib/strategy.rb
     - src/flow/lib/grammar.rb
-    - src/flow/lib/log.rb
-    - src/flow/lib/models.rb
     - src/flow/lib/validator.rb
-    - src/flow/lib/strategy/straight.rb
-    - src/flow/lib/EventManager.rb
 
 ########
 # LAYOUT
