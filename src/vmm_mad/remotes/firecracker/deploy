@@ -28,7 +28,7 @@ require 'microvm'
 xml_path = ARGV[0]
 vm_id    = ARGV[2]
 
-xml = `cat /tmp/a` # STDIN.read
+xml = STDIN.read
 
 # ------------------------------------------------------------------------------
 # Prepare environment
@@ -44,12 +44,10 @@ xml = `cat /tmp/a` # STDIN.read
 client = FirecrackerClient.new("/srv/jailer/firecracker/one-#{vm_id}/root/api.socket")
 microvm = MicroVM.new_from_xml(xml, client)
 
-binding.pry
-
 # Create deployment file into microVM chroot path.
 deployment_file = microvm.deployment_file
 
-File.open("#{microvm.deployment_file_location}/deployment.file", 'w+') do |file|
+File.open("#{microvm.vm_location}/deployment.file", 'w+') do |file|
     file.write(deployment_file.to_s)
 end
 

@@ -45,8 +45,7 @@ end
 # This class parses and wraps the information in the Driver action data
 class OpenNebulaVM
 
-    attr_reader :xml, :vm_id, :vm_name, :sysds_path, :rootfs_id, :fcrc,
-                :deployment_file_location
+    attr_reader :xml, :vm_id, :vm_name, :sysds_path, :rootfs_id, :fcrc
 
     #---------------------------------------------------------------------------
     # Class Constructor
@@ -77,12 +76,10 @@ class OpenNebulaVM
         @rootfs_id = boot_order.split(',')[0][-1] unless boot_order.empty?
 
         # TODO, make this configurable
-        @boot_args = 'console=ttyS0 reboot=k panic=1 pci=off'
-        @uid = 1000
-        @gid = 1000
-        @exec_file = '$(which firecracker)'
-
-        @deployment_file_location = "#{@sysds_path}/#{@vm_id}"
+        @boot_args = 'console=ttyS0 reboot=k panic=1 pci=off' # read from VM
+        @uid = 9869 # read from config file, support non privileged user
+        @gid = 9869 # read from config file, support non privileged user
+        @exec_file = '$(which firecracker)' # read from config file
     end
 
     def has_context?
@@ -120,7 +117,7 @@ class OpenNebulaVM
     #---------------------------------------------------------------------------
     # Creates a dictionary for Firecracker containing $MEMORY RAM allocated
     def boot_source(hash)
-        hash['kernel_image_path'] = "#{@sysds_path}/#{@vm_id}/kernel"
+        hash['kernel_image_path'] = "kernel"
         hash['boot_args'] = @boot_args
     end
 
@@ -137,10 +134,10 @@ class OpenNebulaVM
     end
 
     def machine_config(hash)
-        hash['mem_size_mib'] = @xml['//TEMPLATE/MEMORY'].to_s
+        hash['mem_size_mib'] = Integer(@xml['//TEMPLATE/MEMORY'].to_s)
 
         vcpu = @xml['//TEMPLATE/VCPU']
-        hash['vcpu_count'] = vcpu
+        hash['vcpu_count'] = Integer(vcpu)
 
         hash['ht_enabled'] = false
     end
@@ -168,14 +165,14 @@ class OpenNebulaVM
 
     def jailer_params(hash)
         hash['id'] = "one-#{vm_id}"
-        hash['node'] = 0 #@xml.element('//TEMPLATE//NUMA_NODE')
+        hash['node'] = 0 # TODO, check how use NUMA nodes (@xml.element('//TEMPLATE//NUMA_NODE'))
         hash['exec-file'] = @exec_file
         hash['uid'] = @uid
         hash['gid'] = @gid
     end
 
     def firecracker_params(hash)
-        hash['--config-file'] = 'deploymen.file'
+        hash['--config-file'] = 'deployment.file'
     end
 
     # Creates a dictionary for Firecracker $CPU percentage and cores

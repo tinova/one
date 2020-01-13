@@ -89,28 +89,46 @@ class MicroVM
     end
 
     #---------------------------------------------------------------------------
-    # Container Management & Monitor
+    # Utils
     #---------------------------------------------------------------------------
-
-    # Create a container without a base image
-    def create(wait: true, timeout: '')
-        cmd = 'jailer'
-
-        @fc['command-params']['jailer'].each do |key, val|
-            cmd << " --#{key} #{val}"
-        end
-
-        puts cmd
-
-        `#{cmd}`
-    end
 
     def deployment_file
         @fc['deployment-file'].to_json
     end
 
-    def deployment_file_location
-        @rootfs_dir
+    def vm_location
+        "#{@one.sysds_path}/#{@one.vm_id}"
+    end
+
+    def map_chroot_path
+        `mkdir -p #{@rootfs_dir}`
+
+        # TODO, add option for hard links
+        `sudo mount -o bind #{@one.sysds_path}/#{@one.vm_id} #{@rootfs_dir}`
+    end
+
+    #---------------------------------------------------------------------------
+    # Container Management & Monitor
+    #---------------------------------------------------------------------------
+
+    # Create a microVM
+    def create(wait: true, timeout: '')
+        # Build jailer command paramas
+        cmd = "screen -L -Logfile /tmp/fc-log-#{@one.vm_id} -dmS microvm-#{@one.vm_id} sudo jailer"
+
+        @fc['command-params']['jailer'].each do |key, val|
+            cmd << " --#{key} #{val}"
+        end
+
+        # Build firecracker params
+        cmd << " --"
+        @fc['command-params']['firecracker'].each do |key, val|
+            cmd << " --#{key} #{val}"
+        end
+
+        map_chroot_path
+
+        `#{cmd}`
     end
 
 end
