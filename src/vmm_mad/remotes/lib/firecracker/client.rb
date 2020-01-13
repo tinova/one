@@ -27,7 +27,7 @@ require 'json'
 class FirecrackerClient
 
     # API Configuration Attributes
-    API    = '' # 'http://localhost/'
+    API    = 'http://localhost'
     HEADER = {
         'Accept' => 'application/json',
         'Content-Type' => 'application/json'
@@ -35,13 +35,11 @@ class FirecrackerClient
     API_RETRY = 5 # Attempts, in case a response is failed to read from LXD
 
     def initialize(socket_path)
-        @socket = nil
-
-        #begin
-        #    @socket = socket(socket_path)
-        #rescue
-        #    raise "Failed to open socket: #{socket_path}"
-        #end
+        begin
+            @socket = socket(socket_path)
+        rescue
+            raise "Failed to open socket: #{socket_path}"
+        end
     end
 
     # Performs HTTP::Get
@@ -106,7 +104,7 @@ class FirecrackerClient
     # (may be nil)
 
     def get_response(request, data)
-        request.body = JSON.dump(data) unless data.nil?
+        request.body = JSON.parse(data).to_json unless data.nil?
 
         response = nil
 
@@ -120,6 +118,7 @@ class FirecrackerClient
             end
 
             response.reading_body(@socket, request.response_body_permitted?) {}
+
             next unless response.body.length >= 2
 
             response = JSON.parse(response.body)

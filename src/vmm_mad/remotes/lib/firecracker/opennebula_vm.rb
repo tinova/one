@@ -76,7 +76,7 @@ class OpenNebulaVM
         @rootfs_id = boot_order.split(',')[0][-1] unless boot_order.empty?
 
         # TODO, make this configurable
-        @boot_args = 'console=ttyS0 reboot=k panic=1 pci=off' # read from VM
+        @boot_args = 'console=ttyS0 reboot=k panic=1 pci=off i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd' # read from VM
         @uid = 9869 # read from config file, support non privileged user
         @gid = 9869 # read from config file, support non privileged user
         @exec_file = '$(which firecracker)' # read from config file

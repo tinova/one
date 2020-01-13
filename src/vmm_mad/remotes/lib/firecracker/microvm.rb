@@ -35,11 +35,12 @@ class MicroVM
         @fc = fc
         @one = one
 
-        #@lxc_command = 'lxc'
-        #@lxc_command.prepend 'sudo ' if client.snap
+        @jailer_command = 'sudo jailer'
 
-        @rootfs_dir = "/srv/jailer/firecracker/one-#{@one.vm_id}/root"
-        @context_path = "#{@rootfs_dir}/context"
+        if !@one.nil?
+            @rootfs_dir = "/srv/jailer/firecracker/one-#{@one.vm_id}/root"
+            @context_path = "#{@rootfs_dir}/context"
+        end
     end
 
     class << self
@@ -92,8 +93,10 @@ class MicroVM
     # Utils
     #---------------------------------------------------------------------------
 
-    def deployment_file
-        @fc['deployment-file'].to_json
+    def gen_deployment_file
+        File.open("#{vm_location}/deployment.file", 'w+') do |file|
+            file.write(@fc['deployment-file'].to_json)
+        end
     end
 
     def vm_location
@@ -112,9 +115,10 @@ class MicroVM
     #---------------------------------------------------------------------------
 
     # Create a microVM
-    def create(wait: true, timeout: '')
+    def create
         # Build jailer command paramas
-        cmd = "screen -L -Logfile /tmp/fc-log-#{@one.vm_id} -dmS microvm-#{@one.vm_id} sudo jailer"
+        cmd = "screen -L -Logfile /tmp/fc-log-#{@one.vm_id} -dmS " \
+              "microvm-#{@one.vm_id} #{@jailer_command}"
 
         @fc['command-params']['jailer'].each do |key, val|
             cmd << " --#{key} #{val}"
@@ -129,6 +133,11 @@ class MicroVM
         map_chroot_path
 
         `#{cmd}`
+    end
+
+    def cancel(wait: true, timeout: '')
+        data = '{"action_type": "SendCtrlAltDel"}'
+        @client.put("actions", data)
     end
 
 end
