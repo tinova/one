@@ -34,4 +34,6 @@ rc = microvm.shutdown
 
 # TODO, check pid have been killed before starting clean operation
 
-microvm.clean unless rc.nil?
+rc = microvm.clean if rc
+
+rc

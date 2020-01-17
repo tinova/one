@@ -118,7 +118,7 @@ class MicroVM
     def create
         # Build jailer command paramas
         cmd = "screen -L -Logfile /tmp/fc-log-#{@one.vm_id} -dmS " \
-              "microvm-#{@one.vm_id} #{@jailer_command}"
+              "one-#{@one.vm_id} #{@jailer_command}"
 
         @fc['command-params']['jailer'].each do |key, val|
             cmd << " --#{key} #{val}"
@@ -132,12 +132,20 @@ class MicroVM
 
         map_chroot_path
 
-        `#{cmd}`
+        system(cmd)
     end
 
     def shutdown(wait: true, timeout: '')
         data = '{"action_type": "SendCtrlAltDel"}'
-        @client.put("actions", data).nil?
+        @client.put("actions", data)
+
+        true
+    end
+
+    def cancel(wait: true, timeout: '')
+        pid = `ps auxwww | grep "^.*firecracker.*\-\-id=one-#{@one.vm_id}"`.split[1]
+
+        system("kill -9 #{pid}")
     end
 
     def clean

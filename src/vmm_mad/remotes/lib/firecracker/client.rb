@@ -117,9 +117,9 @@ class FirecrackerClient
                 break unless response.is_a?(Net::HTTPContinue)
             end
 
-            response.reading_body(@socket, request.response_body_permitted?) {}
-
             break if response.class == Net::HTTPNoContent
+
+            response.reading_body(@socket, request.response_body_permitted?) {}
 
             next if response.body.nil?
 

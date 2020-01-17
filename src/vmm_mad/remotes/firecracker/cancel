@@ -20,34 +20,19 @@ $LOAD_PATH.unshift File.dirname(__FILE__)
 
 require 'microvm'
 
-# ------------------------------------------------------------------------------
-# Action Arguments, STDIN includes XML description of the OpenNebula VM
-# ------------------------------------------------------------------------------
-
-xml_path = ARGV[0]
-vm_id    = ARGV[2]
+deploy_id = ARGV[0]
+host      = ARGV[1]
+vm_id     = ARGV[2]
 
 xml = STDIN.read
 
-# ------------------------------------------------------------------------------
-# Prepare environment
-# ------------------------------------------------------------------------------
-#
-# - Gen deployment file (by the core in vm path?)
-# - Make chrot directory (mkdir -p /srv/jailer/firecracker/one-<vm_id>/root/)
-# - Copy (or link) deployment file
-# - Copy (or link) image and kernel to chroot directory (TM_MAD?)
-# - Check file permissions
-# - Start the firecracker process by using the jailer and the deployment file
-#
-
-#Set deploy_id
-puts "one-#{vm_id}"
-
+# TODO, custom socket path for client
 microvm = MicroVM.new_from_xml(xml, nil)
 
-# Create deployment file into microVM chroot path.
-microvm.gen_deployment_file
+rc = microvm.cancel
 
-# Create microVM
-microvm.create
+# TODO, check pid have been killed before starting clean operation
+
+microvm.clean if rc
+
+rc
