@@ -24,8 +24,14 @@ deploy_id = ARGV[0]
 host      = ARGV[1]
 vm_id     = ARGV[2]
 
+xml = STDIN.read
+
 # TODO, custom socket path for client
 client = FirecrackerClient.new("/srv/jailer/firecracker/one-#{vm_id}/root/api.socket")
-microvm = MicroVM.new(nil, nil, client)
+microvm = MicroVM.new_from_xml(xml, client)
 
-microvm.cancel
+rc = microvm.shutdown
+
+# TODO, check pid have been killed before starting clean operation
+
+microvm.clean unless rc.nil?

@@ -119,7 +119,9 @@ class FirecrackerClient
 
             response.reading_body(@socket, request.response_body_permitted?) {}
 
-            next unless response.body.length >= 2
+            break if response.class == Net::HTTPNoContent
+
+            next if response.body.nil?
 
             response = JSON.parse(response.body)
 

@@ -911,7 +911,7 @@ VMM_EXEC_LXD_LIB="src/vmm_mad/remotes/lib/lxd/opennebula_vm.rb \
 # VMM SH Driver Firecracker scripts, to be installed under $REMOTES_LOCATION/vmm/firecracker
 #-------------------------------------------------------------------------------
 VMM_EXEC_FIRECRACKER_SCRIPTS="src/vmm_mad/remotes/firecracker/deploy \
-                            src/vmm_mad/remotes/firecracker/cancel"
+                            src/vmm_mad/remotes/firecracker/shutdown"
 
 VMM_EXEC_FIRECRACKER_LIB="src/vmm_mad/remotes/lib/firecracker/opennebula_vm.rb \
                 src/vmm_mad/remotes/lib/firecracker/client.rb \

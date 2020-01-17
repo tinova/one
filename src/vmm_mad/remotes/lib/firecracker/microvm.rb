@@ -135,9 +135,24 @@ class MicroVM
         `#{cmd}`
     end
 
-    def cancel(wait: true, timeout: '')
+    def shutdown(wait: true, timeout: '')
         data = '{"action_type": "SendCtrlAltDel"}'
-        @client.put("actions", data)
+        @client.put("actions", data).nil?
+    end
+
+    def clean
+        # remove jailer generated files
+        rc = system("sudo rm -rf #{@rootfs_dir}/dev/")
+        rc &= system("rm -rf #{@rootfs_dir}/api.socket")
+        rc &= system("rm -rf #{@rootfs_dir}/firecracker")
+
+        # unmount vm directory
+        rc &= `sudo umount #{@rootfs_dir}`
+
+        # remove chroot directory
+        rc &= system("rm -rf #{File.expand_path("..", @rootfs_dir)}") if rc
+
+        rc
     end
 
 end
