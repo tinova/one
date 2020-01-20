@@ -16,30 +16,47 @@
 # limitations under the License.                                             #
 #--------------------------------------------------------------------------- #
 
-$LOAD_PATH.unshift File.dirname(__FILE__)
+require 'open3'
 
-require 'microvm'
+# This module can be used to execute commands. It wraps popen3 and provides
+# locking capabilites using flock
+module Command
 
-# ------------------------------------------------------------------------------
-# Action Arguments, STDIN includes XML description of the OpenNebula VM
-# ------------------------------------------------------------------------------
+    LOCK_FILE = '/tmp/onefirecracker-lock'
 
-vm_id = ARGV[2]
+    def self.execute(cmd, block)
+        stdout = ''
+        stderr = ''
 
-xml = STDIN.read
+        begin
+            fd = lock if block
 
-# TODO, check if microVM already exists
+            stdout, stderr, s = Open3.capture3(cmd)
+        ensure
+            unlock(fd) if block
+        end
 
-microvm = MicroVM.new_from_xml(xml, nil)
+        [s.exitstatus, stdout, stderr]
+    end
 
-# Create deployment file into microVM chroot path.
-microvm.gen_deployment_file
+    def self.execute_once(cmd, lock)
+        execute(cmd, lock) unless running?(cmd.split[0])
+    end
 
-# Create microVM
-microvm.create
+    # Return true if command is running
+    def self.running?(command)
+        !`ps  --noheaders -C #{command}`.empty?
+    end
 
-# Start VNC
-microvm.vnc('start')
+    def self.lock
+        lfd = File.open(LOCK_FILE,"w")
+        lfd.flock(File::LOCK_EX)
 
-# Set deploy_id
-puts "one-#{vm_id}"
+        lfd
+    end
+
+    def self.unlock(lfd)
+        lfd.close
+    end
+
+end

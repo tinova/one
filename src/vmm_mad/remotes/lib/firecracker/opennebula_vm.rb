@@ -407,9 +407,9 @@ class OpenNebulaVM
         end
     end
 
-    # Creates container vnc connection
-    # Creates or closes a connection to a container rfb port depending on signal
-    def vnc_command(signal, lxc_command)
+    # Creates microVM vnc connection
+    # Creates or closes a connection to a microVM rfb port depending on signal
+    def vnc_command(signal, vnc_command)
         data = @xml.element('//TEMPLATE/GRAPHICS')
         return unless data && data['TYPE'].casecmp('vnc').zero?
 
@@ -418,10 +418,7 @@ class OpenNebulaVM
 
         case signal
         when 'start'
-            command = @lxdrc[:vnc][:command]
-            command = data['COMMAND'] unless data['COMMAND'].empty?
-
-            "#{data['PORT']} #{pass} #{lxc_command} exec #{@vm_name} #{command}\n"
+            "#{data['PORT']} #{pass} #{vnc_command} #{@vm_name}\n"
         when 'stop'
             "-#{data['PORT']}\n"
         end

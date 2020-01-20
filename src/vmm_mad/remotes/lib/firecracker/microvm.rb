@@ -20,6 +20,7 @@ $LOAD_PATH.unshift File.dirname(__FILE__)
 
 require 'client'
 require 'opennebula_vm'
+require 'command' # TODO, use same class LXD
 
 # This class interacts with Firecracker
 class MicroVM
@@ -36,6 +37,7 @@ class MicroVM
         @one = one
 
         @jailer_command = 'sudo jailer'
+        @vnc_command    = 'screen -x'
 
         if !@one.nil?
             @rootfs_dir = "/srv/jailer/firecracker/one-#{@one.vm_id}/root"
@@ -111,6 +113,41 @@ class MicroVM
     end
 
     #---------------------------------------------------------------------------
+    # VNC
+    #---------------------------------------------------------------------------
+
+    # Start the svncterm server if it is down.
+    def vnc(signal)
+        command = @one.vnc_command(signal, @vnc_command)
+        return if command.nil?
+
+        w = @one.fcrc[:vnc][:width]
+        h = @one.fcrc[:vnc][:height]
+        t = @one.fcrc[:vnc][:timeout]
+
+        vnc_args = "-w #{w} -h #{h} -t #{t}"
+
+        pipe = '/tmp/svncterm_server_pipe'
+        bin  = 'svncterm_server'
+        server = "#{bin} #{vnc_args}"
+
+        rc, _o, e = Command.execute_once(server, true)
+
+        unless [nil, 0].include?(rc)
+            OpenNebula.log_error("#{__method__}: #{e}\nFailed to start vnc")
+            return
+        end
+
+        lfd = Command.lock
+
+        File.open(pipe, 'a') do |f|
+            f.write command
+        end
+    ensure
+        Command.unlock(lfd) if lfd
+    end
+
+    #---------------------------------------------------------------------------
     # Container Management & Monitor
     #---------------------------------------------------------------------------
 
@@ -135,6 +172,7 @@ class MicroVM
         system(cmd)
     end
 
+    # Poweroff the microVM by sending CtrlAltSupr signal
     def shutdown(wait: true, timeout: '')
         data = '{"action_type": "SendCtrlAltDel"}'
         @client.put("actions", data)
@@ -142,12 +180,14 @@ class MicroVM
         true
     end
 
+    # Poweroff hard the microVM by killing the process
     def cancel(wait: true, timeout: '')
         pid = `ps auxwww | grep "^.*firecracker.*\-\-id=one-#{@one.vm_id}"`.split[1]
 
         system("kill -9 #{pid}")
     end
 
+    # Clean resources and directories after shuttingdown the microVM
     def clean
         # remove jailer generated files
         rc = system("sudo rm -rf #{@rootfs_dir}/dev/")

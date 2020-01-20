@@ -20,14 +20,13 @@ $LOAD_PATH.unshift File.dirname(__FILE__)
 
 require 'microvm'
 
-deploy_id = ARGV[0]
-host      = ARGV[1]
-vm_id     = ARGV[2]
-
 xml = STDIN.read
 
 # TODO, custom socket path for client
 microvm = MicroVM.new_from_xml(xml, nil)
+
+# Stop vnc
+microvm.vnc('stop')
 
 rc = microvm.cancel
 

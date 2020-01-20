@@ -20,15 +20,16 @@ $LOAD_PATH.unshift File.dirname(__FILE__)
 
 require 'microvm'
 
-deploy_id = ARGV[0]
-host      = ARGV[1]
-vm_id     = ARGV[2]
+vm_id = ARGV[2]
 
 xml = STDIN.read
 
 # TODO, custom socket path for client
 client = FirecrackerClient.new("/srv/jailer/firecracker/one-#{vm_id}/root/api.socket")
 microvm = MicroVM.new_from_xml(xml, client)
+
+# Stop VNC
+microvm.vnc('stop')
 
 rc = microvm.shutdown
 
