@@ -39,6 +39,9 @@ class MicroVM
         @jailer_command = 'sudo jailer'
         @vnc_command    = 'screen -x'
 
+        # Location for maping the context
+        @map_location = "#{@one.sysds_path}/#{@one.vm_id}/map_context"
+
         if !@one.nil?
             @rootfs_dir = "/srv/jailer/firecracker/one-#{@one.vm_id}/root"
             @context_path = "#{@rootfs_dir}/context"
@@ -106,10 +109,48 @@ class MicroVM
     end
 
     def map_chroot_path
-        `mkdir -p #{@rootfs_dir}`
+        rc = system("mkdir -p #{@rootfs_dir}")
+
+        return false unless rc
 
         # TODO, add option for hard links
-        `sudo mount -o bind #{@one.sysds_path}/#{@one.vm_id} #{@rootfs_dir}`
+        system("sudo mount -o bind #{@one.sysds_path}/#{@one.vm_id} #{@rootfs_dir}")
+    end
+
+    def map_context
+        context = {}
+
+        # retrieve context information
+        @one.context(context)
+
+        return 0 unless context['context'] # return if there is no context
+
+        context_location = context['context']['source']
+
+        # Create temporary directories
+        rc = system("mkdir #{@map_location}")
+        rc &= system("mkdir #{@map_location}/context")
+        rc &= system("mkdir #{@map_location}/fs")
+
+        # mount rootfs
+        rc &= system("sudo mount #{vm_location}/disk.#{@one.rootfs_id} " \
+                        "#{@one.sysds_path}/#{@one.vm_id}/map_context/fs")
+        # mount context disk
+        rc &= system("sudo mount #{context_location} #{@map_location}/context")
+
+        # create "/context" inside rootfs ()
+        if !File.directory?("#{@map_location}/fs/context")
+            system("sudo mkdir #{@map_location}/fs/context")
+        end
+
+        rc &= system("sudo cp #{@map_location}/context/* #{@map_location}/fs/context")
+
+        # clean temporary directories
+        rc &= system("sudo umount #{@map_location}/fs")
+        rc &= system("sudo umount #{@map_location}/context")
+        rc &= system("rm -rf #{@map_location}")
+
+        rc
     end
 
     #---------------------------------------------------------------------------
@@ -153,21 +194,29 @@ class MicroVM
 
     # Create a microVM
     def create
+        cmd = ''
+
+        if @one.vnc?
+            cmd << "screen -L -Logfile /tmp/fc-log-#{@one.vm_id} " \
+                   "-dmS one-#{@one.vm_id} "
+        end
+
         # Build jailer command paramas
-        cmd = "screen -L -Logfile /tmp/fc-log-#{@one.vm_id} -dmS " \
-              "one-#{@one.vm_id} #{@jailer_command}"
+        cmd << @jailer_command
 
         @fc['command-params']['jailer'].each do |key, val|
             cmd << " --#{key} #{val}"
         end
 
         # Build firecracker params
-        cmd << " --"
+        cmd << ' --'
         @fc['command-params']['firecracker'].each do |key, val|
             cmd << " --#{key} #{val}"
         end
 
-        map_chroot_path
+        return false unless map_chroot_path
+
+        return false unless map_context
 
         system(cmd)
     end
@@ -175,7 +224,7 @@ class MicroVM
     # Poweroff the microVM by sending CtrlAltSupr signal
     def shutdown(wait: true, timeout: '')
         data = '{"action_type": "SendCtrlAltDel"}'
-        @client.put("actions", data)
+        @client.put('actions', data)
 
         true
     end
@@ -198,7 +247,7 @@ class MicroVM
         rc &= `sudo umount #{@rootfs_dir}`
 
         # remove chroot directory
-        rc &= system("rm -rf #{File.expand_path("..", @rootfs_dir)}") if rc
+        rc &= system("rm -rf #{File.expand_path('..', @rootfs_dir)}") if rc
 
         rc
     end

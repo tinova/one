@@ -36,7 +36,9 @@ microvm = MicroVM.new_from_xml(xml, nil)
 microvm.gen_deployment_file
 
 # Create microVM
-microvm.create
+rc = microvm.create
+
+return -1 unless rc
 
 # Start VNC
 microvm.vnc('start')
