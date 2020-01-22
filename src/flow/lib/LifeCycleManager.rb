@@ -705,7 +705,8 @@ class ServiceLCM
                                           client,
                                           service.id,
                                           name,
-                                          nodes)
+                                          nodes,
+                                          service.report_ready?)
         end
     end
 
