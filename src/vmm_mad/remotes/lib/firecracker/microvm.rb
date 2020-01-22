@@ -129,26 +129,26 @@ class MicroVM
 
         # Create temporary directories
         rc = system("mkdir #{@map_location}")
-        rc &= system("mkdir #{@map_location}/context")
-        rc &= system("mkdir #{@map_location}/fs")
+        rc &= rc && system("mkdir #{@map_location}/context")
+        rc &= rc && system("mkdir #{@map_location}/fs")
 
         # mount rootfs
-        rc &= system("sudo mount #{vm_location}/disk.#{@one.rootfs_id} " \
+        rc &= rc && system("sudo mount #{vm_location}/disk.#{@one.rootfs_id} " \
                         "#{@one.sysds_path}/#{@one.vm_id}/map_context/fs")
         # mount context disk
-        rc &= system("sudo mount #{context_location} #{@map_location}/context")
+        rc &= rc && system("sudo mount #{context_location} #{@map_location}/context")
 
         # create "/context" inside rootfs ()
         if !File.directory?("#{@map_location}/fs/context")
-            system("sudo mkdir #{@map_location}/fs/context")
+            rc &= rc && system("sudo mkdir #{@map_location}/fs/context")
         end
 
-        rc &= system("sudo cp #{@map_location}/context/* #{@map_location}/fs/context")
+        rc &= rc && system("sudo cp #{@map_location}/context/* #{@map_location}/fs/context")
 
         # clean temporary directories
-        rc &= system("sudo umount #{@map_location}/fs")
-        rc &= system("sudo umount #{@map_location}/context")
-        rc &= system("rm -rf #{@map_location}")
+        rc &= rc && system("sudo umount #{@map_location}/fs")
+        rc &= rc && system("sudo umount #{@map_location}/context")
+        rc &= rc && system("rm -rf #{@map_location}")
 
         rc
     end

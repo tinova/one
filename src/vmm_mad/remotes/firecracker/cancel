@@ -34,4 +34,4 @@ rc = microvm.cancel
 
 microvm.clean if rc
 
-rc
+exit(-1) unless rc

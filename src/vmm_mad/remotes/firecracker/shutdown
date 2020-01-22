@@ -37,4 +37,4 @@ rc = microvm.shutdown
 
 rc = microvm.clean if rc
 
-rc
+exit(-1) unless rc

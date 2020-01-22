@@ -38,7 +38,7 @@ microvm.gen_deployment_file
 # Create microVM
 rc = microvm.create
 
-return -1 unless rc
+exit(-1) unless rc
 
 # Start VNC
 microvm.vnc('start')
