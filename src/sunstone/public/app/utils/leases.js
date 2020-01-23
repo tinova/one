@@ -69,10 +69,10 @@ define(function(require) {
       config && 
       config.system_config && 
       config.system_config.leases
-    ){
+    ){  
+      console.log("-->",form);
       $(parseVarToJqueryClass(classButton)).off("click").on("click", function(e){
         e.preventDefault();
-
         var confLeases = config.system_config.leases;
         var confLeasesKeys = Object.keys(confLeases);
 
@@ -132,13 +132,13 @@ define(function(require) {
           break;
         }
 
-        if(resource && action && template && id){
+        if(resource && action && template){
           switch (resource.toLowerCase()) {
             case "template":
               addInTemplate();
             break;
             case "vm":
-              if(action.toLowerCase() === "update"){
+              if(action.toLowerCase() === "update" && id){
                 var newSchedActions = [];
                 var index = (
                   template && template.SCHED_ACTION ?
