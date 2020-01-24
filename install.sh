@@ -522,6 +522,8 @@ INSTALL_FILES=(
     NETWORK_VXLAN_FILES:$VAR_LOCATION/remotes/vnm/vxlan
     NETWORK_DUMMY_FILES:$VAR_LOCATION/remotes/vnm/dummy
     NETWORK_BRIDGE_FILES:$VAR_LOCATION/remotes/vnm/bridge
+    NETWORK_BRIDGE_PRE_FILES:$VAR_LOCATION/remotes/vnm/bridge/pre.d
+    NETWORK_BRIDGE_CLEAN_FILES:$VAR_LOCATION/remotes/vnm/bridge/clean.d
     NETWORK_EBTABLES_FILES:$VAR_LOCATION/remotes/vnm/ebtables
     NETWORK_FW_FILES:$VAR_LOCATION/remotes/vnm/fw
     NETWORK_OVSWITCH_FILES:$VAR_LOCATION/remotes/vnm/ovswitch
@@ -1180,6 +1182,10 @@ NETWORK_BRIDGE_FILES="src/vnm_mad/remotes/bridge/clean \
                     src/vnm_mad/remotes/bridge/post \
                     src/vnm_mad/remotes/bridge/update_sg \
                     src/vnm_mad/remotes/bridge/pre"
+
+NETWORK_BRIDGE_PRE_FILES="src/vnm_mad/remotes/bridge/pre.d/firecracker"
+
+NETWORK_BRIDGE_CLEAN_FILES="src/vnm_mad/remotes/bridge/clean.d/firecracker"
 
 NETWORK_EBTABLES_FILES="src/vnm_mad/remotes/ebtables/clean \
                     src/vnm_mad/remotes/ebtables/post \

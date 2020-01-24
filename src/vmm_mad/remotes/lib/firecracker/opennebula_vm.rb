@@ -137,6 +137,9 @@ class OpenNebulaVM
         hash['mem_size_mib'] = Integer(@xml['//TEMPLATE/MEMORY'].to_s)
 
         vcpu = @xml['//TEMPLATE/VCPU']
+
+        vcpu = 1 if vcpu.nil? || vcpu.empty?
+
         hash['vcpu_count'] = Integer(vcpu)
 
         hash['ht_enabled'] = false
