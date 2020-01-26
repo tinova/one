@@ -117,6 +117,16 @@ class MicroVM
         system("sudo mount -o bind #{@one.sysds_path}/#{@one.vm_id} #{@rootfs_dir}")
     end
 
+    def get_pid
+        pid = `ps auxwww | grep "^.*firecracker.*\\-\\-id=one-#{@one.vm_id}"`
+
+        if pid.empty? || pid.nil?
+            return -1
+        end
+
+        pid.split[1]
+    end
+
     def map_context
         context = {}
 
@@ -231,7 +241,7 @@ class MicroVM
 
     # Poweroff hard the microVM by killing the process
     def cancel(wait: true, timeout: '')
-        pid = `ps auxwww | grep "^.*firecracker.*\-\-id=one-#{@one.vm_id}"`.split[1]
+        pid = get_pid
 
         system("kill -9 #{pid}")
     end
