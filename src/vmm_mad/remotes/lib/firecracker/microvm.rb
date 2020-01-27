@@ -43,7 +43,7 @@ class MicroVM
         @map_location = "#{@one.sysds_path}/#{@one.vm_id}/map_context"
 
         if !@one.nil?
-            @rootfs_dir = "/srv/jailer/firecracker/one-#{@one.vm_id}/root"
+            @rootfs_dir = "/srv/jailer/firecracker/#{@one.vm_name}/root"
             @context_path = "#{@rootfs_dir}/context"
         end
     end
@@ -118,7 +118,7 @@ class MicroVM
     end
 
     def get_pid
-        pid = `ps auxwww | grep "^.*firecracker.*\\-\\-id=one-#{@one.vm_id}"`
+        pid = `ps auxwww | grep "^.*firecracker.*\\-\\-id=#{@one.vm_name}"`
 
         if pid.empty? || pid.nil?
             return -1
@@ -161,6 +161,24 @@ class MicroVM
         rc &= rc && system("rm -rf #{@map_location}")
 
         rc
+    end
+
+    def wait_shutdown
+        t_start = Time.now
+        timeout = @one.fcrc[:shutdown_timeout]
+
+        next while (Time.now - t_start < timeout) && (get_pid > 0)
+
+        get_pid < 0
+    end
+
+    def wait_cgroup(path)
+        t_start = Time.now
+        timeout = @one.fcrc[:cgroup_delete_timeout]
+
+        next while File.read(path).empty? || (Time.now - t_start < timeout)
+
+        File.read(path).empty?
     end
 
     #---------------------------------------------------------------------------
@@ -208,7 +226,7 @@ class MicroVM
 
         if @one.vnc?
             cmd << "screen -L -Logfile /tmp/fc-log-#{@one.vm_id} " \
-                   "-dmS one-#{@one.vm_id} "
+                   "-dmS #{@one.vm_name} "
         end
 
         # Build jailer command paramas
@@ -237,13 +255,7 @@ class MicroVM
 
         @client.put('actions', data)
 
-        t_start = Time.now
-
-        while Time.now - t_start < @one.fcrc[:timeout]
-            break if get_pid > 0
-        end
-
-        return cancel if get_pid > 0
+        return cancel unless wait_shutdown
 
         true
     end
@@ -267,6 +279,25 @@ class MicroVM
 
         # remove chroot directory
         rc &= system("rm -rf #{File.expand_path('..', @rootfs_dir)}") if rc
+
+        # remove residual cgroups
+        rc &= clean_cgroups
+
+        rc
+    end
+
+    # Remove cgroup residual directories
+    def clean_cgroups
+        cgroup_path = @one.fcrc[:cgroup_location]
+
+        wait_cgroup("#{cgroup_path}/cpu/firecracker/#{@one.vm_name}/tasks")
+        rc = system("sudo rmdir #{cgroup_path}/cpu/firecracker/#{@one.vm_name}")
+
+        wait_cgroup("#{cgroup_path}/cpuset/firecracker/#{@one.vm_name}/tasks")
+        rc &= system("sudo rmdir #{cgroup_path}/cpuset/firecracker/#{@one.vm_name}")
+
+        wait_cgroup("#{cgroup_path}/pids/firecracker/#{@one.vm_name}/tasks")
+        rc &= system("sudo rmdir #{cgroup_path}/pids/firecracker/#{@one.vm_name}")
 
         rc
     end

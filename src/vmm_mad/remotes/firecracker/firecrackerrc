@@ -48,3 +48,13 @@
 #
 # Timeout (in seconds) for executing cancel action if shutdown gets stuck
 :shutdown_timeout: 10
+
+################################################################################
+# Cgroups Configuration Options
+################################################################################
+#
+# Path where cgrup file system is mounted
+:cgroup_location: /sys/fs/cgroup
+#
+# Timeout to wait a cgroup to be empty after shutdown/cancel a microVM
+:cgroup_delete_timeout: 10

@@ -29,7 +29,9 @@ class FirecrackerConfiguration < Hash
         :firecracker_location => '/usr/bin/firecracker',
         :uid => 9869,
         :gid => 9869,
-        :timeout => 10
+        :shutdown_timeout => 10,
+        :cgroup_location => '/sys/fs/cgroup',
+        :cgroup_delete_timeout => 10
     }
 
     FIRECRACKERRC = '../../etc/vmm/firecracker/firecrackerrc'
