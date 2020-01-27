@@ -78,9 +78,7 @@ class OpenNebulaVM
         @rootfs_id = disk['DISK_ID']
         boot_order = @xml['//TEMPLATE/OS/BOOT']
         @rootfs_id = boot_order.split(',')[0][-1] unless boot_order.empty?
-
-        # TODO, make this configurable
-        @boot_args = 'console=ttyS0 reboot=k panic=1 pci=off i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd' # read from VM
+        @boot_args = @xml['//TEMPLATE/OS/KERNEL_CMD']
         @uid = @fcrc[:uid]
         @gid = @fcrc[:gid]
         @exec_file = @fcrc[:firecracker_location]
