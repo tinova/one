@@ -20,6 +20,8 @@ $LOAD_PATH.unshift File.dirname(__FILE__)
 
 require 'microvm'
 
+require_relative '../../scripts_common'
+
 vm_id = ARGV[2]
 
 xml = STDIN.read
@@ -31,7 +33,7 @@ microvm = MicroVM.new_from_xml(xml, client)
 # Stop VNC
 microvm.vnc('stop')
 
-rc = microvm.shutdown(10)
+rc = microvm.shutdown
 
 # TODO, check pid have been killed before starting clean operation
 

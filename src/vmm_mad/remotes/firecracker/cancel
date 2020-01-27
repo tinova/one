@@ -20,6 +20,8 @@ $LOAD_PATH.unshift File.dirname(__FILE__)
 
 require 'microvm'
 
+require_relative '../../scripts_common'
+
 xml = STDIN.read
 
 # TODO, custom socket path for client

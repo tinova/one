@@ -21,23 +21,27 @@ class FirecrackerConfiguration < Hash
 
     DEFAULT_CONFIGURATION = {
         :vnc => {
-            :command => '/bin/login',
             :width   => '800',
             :height  => '600',
             :timeout => '300'
         },
-        :datastore_location => '/var/lib/one/datastores'
+        :datastore_location   => '/var/lib/one/datastores',
+        :firecracker_location => '/usr/bin/firecracker',
+        :uid => 9869,
+        :gid => 9869,
+        :timeout => 10
     }
+
+    FIRECRACKERRC = '../../etc/vmm/firecracker/firecrackerrc'
 
     def initialize
         replace(DEFAULT_CONFIGURATION)
 
-        # TODO, config file?
-        # begin
-        #     merge!(YAML.load_file("#{__dir__}/#{LXDRC}"))
-        # rescue => e
-        #     OpenNebula.log_error e
-        # end
+        begin
+            merge!(YAML.load_file("#{__dir__}/#{FIRECRACKERRC}"))
+        rescue => e
+            OpenNebula.log_error e
+        end
     end
 
 end
@@ -77,9 +81,9 @@ class OpenNebulaVM
 
         # TODO, make this configurable
         @boot_args = 'console=ttyS0 reboot=k panic=1 pci=off i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd' # read from VM
-        @uid = 9869 # read from config file, support non privileged user
-        @gid = 9869 # read from config file, support non privileged user
-        @exec_file = '$(which firecracker)' # read from config file
+        @uid = @fcrc[:uid]
+        @gid = @fcrc[:gid]
+        @exec_file = @fcrc[:firecracker_location]
     end
 
     def has_context?
@@ -117,7 +121,7 @@ class OpenNebulaVM
     #---------------------------------------------------------------------------
     # Creates a dictionary for Firecracker containing $MEMORY RAM allocated
     def boot_source(hash)
-        hash['kernel_image_path'] = "kernel"
+        hash['kernel_image_path'] = 'kernel'
         hash['boot_args'] = @boot_args
     end
 

@@ -232,14 +232,14 @@ class MicroVM
     end
 
     # Poweroff the microVM by sending CtrlAltSupr signal
-    def shutdown(timeout)
+    def shutdown
         data = '{"action_type": "SendCtrlAltDel"}'
 
         @client.put('actions', data)
 
         t_start = Time.now
 
-        while Time.now - t_start < timeout
+        while Time.now - t_start < @one.fcrc[:timeout]
             break if get_pid > 0
         end
 
