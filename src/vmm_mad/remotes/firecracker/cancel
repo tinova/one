@@ -24,15 +24,12 @@ require_relative '../../scripts_common'
 
 xml = STDIN.read
 
-# TODO, custom socket path for client
 microvm = MicroVM.new_from_xml(xml, nil)
 
 # Stop vnc
 microvm.vnc('stop')
 
 rc = microvm.cancel
-
-# TODO, check pid have been killed before starting clean operation
 
 microvm.clean if rc
 

@@ -742,7 +742,7 @@ Metrics/BlockLength:
     Enabled: False
 
 # Line Length config:
-Metrics/LineLength:
+Layout/LineLength:
     Max: 80
 
 Metrics/ModuleLength:

@@ -34,7 +34,6 @@ xml = STDIN.read
 
 microvm = MicroVM.new_from_xml(xml, nil)
 
-# Create deployment file into microVM chroot path.
 microvm.gen_deployment_file
 
 # Create microVM

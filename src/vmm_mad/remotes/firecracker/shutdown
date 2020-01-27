@@ -35,8 +35,6 @@ microvm.vnc('stop')
 
 rc = microvm.shutdown
 
-# TODO, check pid have been killed before starting clean operation
-
 rc = microvm.clean if rc
 
 exit(-1) unless rc
