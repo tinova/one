@@ -124,7 +124,7 @@ class MicroVM
             return -1
         end
 
-        pid.split[1]
+        Integer(pid.split[1])
     end
 
     def map_context
@@ -232,15 +232,24 @@ class MicroVM
     end
 
     # Poweroff the microVM by sending CtrlAltSupr signal
-    def shutdown(wait: true, timeout: '')
+    def shutdown(timeout)
         data = '{"action_type": "SendCtrlAltDel"}'
+
         @client.put('actions', data)
+
+        t_start = Time.now
+
+        while Time.now - t_start < timeout
+            break if get_pid > 0
+        end
+
+        return cancel if get_pid > 0
 
         true
     end
 
     # Poweroff hard the microVM by killing the process
-    def cancel(wait: true, timeout: '')
+    def cancel
         pid = get_pid
 
         system("kill -9 #{pid}")

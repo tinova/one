@@ -31,7 +31,7 @@ microvm = MicroVM.new_from_xml(xml, client)
 # Stop VNC
 microvm.vnc('stop')
 
-rc = microvm.shutdown
+rc = microvm.shutdown(10)
 
 # TODO, check pid have been killed before starting clean operation
 
