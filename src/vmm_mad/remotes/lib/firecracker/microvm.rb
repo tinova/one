@@ -176,7 +176,7 @@ class MicroVM
         t_start = Time.now
         timeout = @one.fcrc[:cgroup_delete_timeout]
 
-        next while File.read(path).empty? || (Time.now - t_start < timeout)
+        next while !File.read(path).empty? && (Time.now - t_start < timeout)
 
         File.read(path).empty?
     end

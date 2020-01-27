@@ -125,18 +125,6 @@ class OpenNebulaVM
         hash['boot_args'] = @boot_args
     end
 
-    def drives(array)
-        # TODO, make it support multiple disks
-        drive = {}
-
-        drive['drive_id'] = 'rootfs'
-        drive['path_on_host'] = "disk.#{@rootfs_id}"
-        drive['is_root_device'] = true
-        drive['is_read_only'] = false
-
-        array << drive
-    end
-
     def machine_config(hash)
         hash['mem_size_mib'] = Integer(@xml['//TEMPLATE/MEMORY'].to_s)
 
@@ -147,19 +135,6 @@ class OpenNebulaVM
         hash['vcpu_count'] = Integer(vcpu)
 
         hash['ht_enabled'] = false
-    end
-
-    def nic(array)
-        get_nics.each do |n|
-            eth = {
-                'iface_id'            => "eth#{n['NIC_ID']}",
-                'host_dev_name'       => "one-#{@vm_id}-#{n['NIC_ID']}",
-                'guest_mac'           => n['MAC'],
-                'allow_mmds_requests' => true # TODO, manage this
-            }
-
-            array << eth
-        end
     end
 
     def command_params(hash)
@@ -191,11 +166,43 @@ class OpenNebulaVM
         @xml.elements('//TEMPLATE/NIC')
     end
 
+    def nic(array)
+        get_nics.each do |n|
+            eth = {
+                'iface_id'            => "eth#{n['NIC_ID']}",
+                'host_dev_name'       => "one-#{@vm_id}-#{n['NIC_ID']}",
+                'guest_mac'           => n['MAC'],
+                'allow_mmds_requests' => true # TODO, manage this
+            }
+
+            array << eth
+        end
+    end
+
     #---------------------------------------------------------------------------
     # Container Device Mapping: Storage
     #---------------------------------------------------------------------------
 
     # Generate Context information
+    def drives(array)
+        get_disks.each do |n|
+            disk_id = n['DISK_ID']
+
+            drive = {
+                'drive_id'       => "disk.#{disk_id}",
+                'path_on_host'   => "disk.#{disk_id}",
+                'is_root_device' => rootfs_id == disk_id,
+                'is_read_only'   => n['READONLY'].casecmp?('yes')
+            }
+
+            array << drive
+        end
+    end
+
+    def get_disks
+        @xml.elements('//TEMPLATE/DISK')
+    end
+
     def context(hash)
         cid = @xml['//TEMPLATE/CONTEXT/DISK_ID']
 
