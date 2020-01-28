@@ -17,6 +17,7 @@
 
 require 'strategy'
 require 'ActionManager'
+require 'ServiceWatchDog'
 
 # Service Life Cycle Manager
 class ServiceLCM
@@ -36,7 +37,12 @@ class ServiceLCM
         'SCALEUP_CB'           => :scaleup_cb,
         'SCALEUP_FAILURE_CB'   => :scaleup_failure_cb,
         'SCALEDOWN_CB'         => :scaledown_cb,
-        'SCALEDOWN_FAILURE_CB' => :scaledown_failure_cb
+        'SCALEDOWN_FAILURE_CB' => :scaledown_failure_cb,
+
+        # WD callbacks
+        'ERROR_WD_CB'   => :error_wd_cb,
+        'DONE_WD_CB'    => :done_wd_cb,
+        'RUNNING_WD_CB' => :running_wd_cb
     }
 
     def initialize(client, concurrency, cloud_auth)
@@ -51,6 +57,7 @@ class ServiceLCM
         }
 
         @event_manager = EventManager.new(em_conf).am
+        @wd            = ServiceWD.new(client, em_conf)
 
         # Register Action Manager actions
         @am.register_action(ACTIONS['DEPLOY_CB'],
@@ -71,6 +78,12 @@ class ServiceLCM
                             method('scaledown_failure_cb'))
         @am.register_action(ACTIONS['COOLDOWN_CB'],
                             method('cooldown_cb'))
+        @am.register_action(ACTIONS['ERROR_WD_CB'],
+                            method('error_wd_cb'))
+        @am.register_action(ACTIONS['DONE_WD_CB'],
+                            method('done_wd_cb'))
+        @am.register_action(ACTIONS['RUNNING_WD_CB'],
+                            method('running_wd_cb'))
 
         Thread.new { @am.start_listener }
 
@@ -375,6 +388,11 @@ class ServiceLCM
 
             if service.all_roles_running?
                 service.set_state(Service::STATE['RUNNING'])
+
+                # start wd listener
+                Thread.new {
+                    @wd.start_watching(service_id, service.roles)
+                }
             elsif service.strategy == 'straight'
                 set_deploy_strategy(service)
 
@@ -550,6 +568,54 @@ class ServiceLCM
     end
 
     ############################################################################
+    # WatchDog Callbacks
+    ############################################################################
+
+    def error_wd_cb(client, service_id, role_name, _node)
+        rc = @srv_pool.get(service_id, client) do |service|
+            service.set_state(Service::STATE['WARNING'])
+            service.roles[role_name].set_state(Role::STATE['WARNING'])
+
+            service.update
+        end
+
+        Log.error 'WD', rc.message if OpenNebula.is_error?(rc)
+    end
+
+    def done_wd_cb(client, service_id, role_name, node)
+        rc = @srv_pool.get(service_id, client) do |service|
+            role        = service.roles[role_name]
+            cardinality = role.cardinality - 1
+
+            # just update if the cardinality is positive
+            set_cardinality(role, cardinality, true) if cardinality >= 0
+
+            service.update
+
+            Log.info 'WD',
+            "Update #{service_id}:#{role_name} cardinality to #{cardinality}"
+
+            @wd.update_node(service_id, role_name, node)
+        end
+
+        Log.error 'WD', rc.message if OpenNebula.is_error?(rc)
+    end
+
+    def running_wd_cb(client, service_id, role_name, _node)
+        rc = @srv_pool.get(service_id, client) do |service|
+            service.roles[role_name].set_state(Role::STATE['RUNNING'])
+
+            if service.all_roles_running?
+                service.set_state(Service::STATE['RUNNING'])
+            end
+
+            service.update
+        end
+
+        Log.error 'WD', rc.message if OpenNebula.is_error?(rc)
+    end
+
+    ############################################################################
     # Helpers
     ############################################################################
 
@@ -562,6 +628,10 @@ class ServiceLCM
 
         @srv_pool.each do |service|
             recover_action(client, service.id) if service.transient_state?
+
+            service.info
+
+            Thread.new { @wd.start_watching(service.id, service.roles) }
         end
     end
 

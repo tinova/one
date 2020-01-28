@@ -2237,6 +2237,7 @@ ONEFLOW_ETC_FILES="src/flow/etc/oneflow-server.conf"
 ONEFLOW_LIB_FILES="src/flow/lib/grammar.rb \
                     src/flow/lib/grammar.treetop \
                     src/flow/lib/LifeCycleManager.rb \
+                    src/flow/lib/ServiceWatchDog.rb \
                     src/flow/lib/log.rb \
                     src/flow/lib/models.rb \
                     src/flow/lib/strategy.rb \
