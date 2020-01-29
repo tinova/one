@@ -21,9 +21,10 @@ require 'EventManager'
 # Service watchdog class
 class ServiceWD
 
-    # --------------------------------------------------------------------------
+    ############################################################################
     # Default configuration options for the module
-    # --------------------------------------------------------------------------
+    ############################################################################
+
     DEFAULT_CONF = {
         :subscriber_endpoint  => 'tcp://localhost:2101',
         :timeout_s   => 30,
@@ -50,9 +51,54 @@ class ServiceWD
         @cloud_auth = @conf[:cloud_auth]
         @client     = client
 
-        @services_nodes = {}
+        @services_nodes   = {}
+        @services_threads = {}
     end
 
+    # Start service WD thread
+    #
+    # @param service_id [Integer] Service ID to watch
+    # @param roles      [Array]   Service roles with its nodes
+    def start(service_id, roles)
+        @services_threads[service_id] = Thread.new do
+            start_watching(service_id, roles)
+        end
+    end
+
+    # Stop service WD thread
+    #
+    # @param service_id [Integer] Service ID to stop
+    def stop(service_id)
+        @services_threads[service_id].terminate
+        @services_threads.delete(service_id)
+
+        stop_watching(service_id)
+    end
+
+    # Update service nodes
+    #
+    # @param service_id [Integer] Service ID to update
+    # @param role_name  [String]  Role to update
+    # @param node       [Integer] VM ID to delete
+    def update(service_id, role_name, node)
+        subscriber = gen_subscriber
+
+        unsubscribe(node, subscriber)
+
+        @service_nodes[service_id][role_name].delete(node)
+
+        return unless @service_nodes[service_id][role_name].empty?
+
+        # if all role nodes have been deleted, delete the rol
+        @service_nodes[service_id].delete(role_name)
+    end
+
+    private
+
+    # Start watching service roles nodes
+    #
+    # @param service_id [Integer] Service ID to watch
+    # @param roles      [Array]   Service roles with its nodes
     def start_watching(service_id, roles)
         @services_nodes[service_id] = {}
 
@@ -62,7 +108,7 @@ class ServiceWD
         end
 
         # check that all nodes are in RUNNING state, if not, notify
-        check_roles_health(client, service_id, roles)
+        check_roles_state(client, service_id, roles)
 
         # subscribe to all nodes
         subscriber = gen_subscriber
@@ -76,8 +122,8 @@ class ServiceWD
         key     = ''
         content = ''
 
-        # wait until there are no nodes
-        until @services_nodes[service_id].empty?
+        # wait for any STATE change
+        loop do
             rc = subscriber.recv_string(key)
             rc = subscriber.recv_string(content) if rc != -1
 
@@ -85,26 +131,34 @@ class ServiceWD
                 Log.error LOG_COMP, 'Error reading from subscriber.'
             end
 
+            # key format: EVENT VM VM_ID/STATE/LCM_STATE
             next if key.nil?
 
-            next if key.split[2].nil?
+            split_key = key.split
 
-            node      = key.split[2].split('/')[0].to_i
-            state     = key.split[2].split('/')[1]
-            lcm_state = key.split[2].split('/')[2]
+            # if there is no data skip
+            next if split_key[2].nil?
+
+            split_key = key.split[2].split('/')
+            node      = split_key[0].to_i
+            state     = split_key[1]
+            lcm_state = split_key[2]
             role_name = find_by_id(service_id, node)
 
             # if the VM is not from the service skip
             next if role_name.nil?
 
-            states = {}
+            states         = {}
             states[:state] = state
             states[:lcm]   = lcm_state
 
-            check_role_health(client, service_id, role_name, node, states)
+            check_role_state(client, service_id, role_name, node, states)
         end
     end
 
+    # Stop watching service roles nodes
+    #
+    # @service_id [Integer] Service ID to stop watching
     def stop_watching(service_id)
         # unsubscribe from all nodes
         subscriber = gen_subscriber
@@ -115,24 +169,10 @@ class ServiceWD
             end
         end
 
-        # reset the service nodes object
-        @services_nodes[service_id] = {}
+        @services_nodes.delete(service_id)
     end
 
-    def update_node(service_id, role_name, node)
-        subscriber = gen_subscriber
-
-        unsubscribe(node, subscriber)
-
-        @service_nodes[service_id][role_name].delete(node)
-
-        if @service_nodes[service_id][role_name].empty?
-            @service_nodes[service_id].delete(role_name)
-        end
-    end
-
-    private
-
+    # Get OpenNebula client
     def client
         # If there's a client defined use it
         return @client unless @client.nil?
@@ -141,6 +181,7 @@ class ServiceWD
         @cloud_auth.client
     end
 
+    # Get ZMQ subscriber object
     def gen_subscriber
         subscriber = @context.socket(ZMQ::SUB)
 
@@ -151,18 +192,31 @@ class ServiceWD
         subscriber
     end
 
+    # Subscribe to VM state changes
+    #
+    # @param vm_id      [Integer] VM ID to subscribe
+    # @param subscriber [ZMQ]     ZMQ subscriber object
     def subscribe(vm_id, subscriber)
         subscriber.setsockopt(ZMQ::SUBSCRIBE, "EVENT VM #{vm_id}")
     end
 
+    # Unsubscribe from VM state changes
+    #
+    # @param vm_id      [Integer] VM ID to unsubscribe
+    # @param subscriber [ZMQ]     ZMQ subscriber object
     def unsubscribe(vm_id, subscriber)
         subscriber.setsockopt(ZMQ::UNSUBSCRIBE, "EVENT VM #{vm_id}")
     end
 
-    def check_roles_health(client, service_id, roles)
+    # Check service roles state
+    #
+    # @param client     [OpenNebula::Client] Client to make API calls
+    # @param service_id [Integer]            Service ID to check
+    # @param roles      [Array]              Service roles with its nodes
+    def check_roles_state(client, service_id, roles)
         roles.each do |name, role|
             role.nodes_ids.each do |node|
-                check_role_health(client, service_id, name, node)
+                check_role_state(client, service_id, name, node)
             end
         end
     end
@@ -171,6 +225,12 @@ class ServiceWD
     # HELPERS
     ############################################################################
 
+    # Find role name for a given VM
+    #
+    # @param service_id [Integer] Service ID to get role from
+    # @param node       [Integer] VM ID
+    #
+    # @return nil if don't find, role_name if found
     def find_by_id(service_id, node)
         ret = @services_nodes[service_id].find do |_, nodes|
             nodes.include?(node)
@@ -179,7 +239,15 @@ class ServiceWD
         ret[0] unless ret.nil?
     end
 
-    def check_role_health(client, service_id, role_name, node, states = nil)
+    # Check role state
+    #
+    # @param client     [OpenNebula::Client] Client to make API calls
+    # @param service_id [Integer]            Service ID to check
+    # @param role_name  [String]             Role to check
+    # @param node       [Integer]            VM ID
+    # @param states     [Hash]               node state and node lcm state
+    def check_role_state(client, service_id, role_name, node, states = nil)
+        # if don't have the state, query it by creating a VM object
         if states.nil?
             vm = OpenNebula::VirtualMachine.new_with_id(node, client)
             vm.info
@@ -199,9 +267,11 @@ class ServiceWD
         elsif vm_lcm_state == 'RUNNING'
             action = :running_wd_cb
         else
+            # in case there is other state, ignore it
             return
         end
 
+        # execute callback
         @lcm.trigger_action(action,
                             service_id,
                             client,
@@ -211,5 +281,4 @@ class ServiceWD
     end
 
 end
-
 # rubocop:enable Naming/FileName

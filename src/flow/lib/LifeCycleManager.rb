@@ -199,6 +199,9 @@ class ServiceLCM
                 if service.all_roles_running?
                     service.set_state(Service::STATE['RUNNING'])
                     service.update
+
+                    # start watchdog
+                    @wd.start(service.id, service.roles)
                 end
 
                 # If there is no node in PENDING the service is not modified.
@@ -242,6 +245,9 @@ class ServiceLCM
                     "#{service.state_str}"
                 )
             end
+
+            # stop watchdog
+            @wd.stop(service.id)
 
             set_deploy_strategy(service)
 
@@ -295,6 +301,9 @@ class ServiceLCM
                     "Service cannot be scaled in state: #{service.state_str}"
                 )
             end
+
+            # stop watchdog
+            @wd.stop(service.id)
 
             role = service.roles[role_name]
 
@@ -389,10 +398,8 @@ class ServiceLCM
             if service.all_roles_running?
                 service.set_state(Service::STATE['RUNNING'])
 
-                # start wd listener
-                Thread.new {
-                    @wd.start_watching(service_id, service.roles)
-                }
+                # start watching the service
+                @wd.start(service.id, service.roles)
             elsif service.strategy == 'straight'
                 set_deploy_strategy(service)
 
@@ -438,7 +445,7 @@ class ServiceLCM
 
                 if rc && !rc.empty?
                     Log.info LOG_COMP, 'Error trying to delete '\
-                                      "Virtual Networks #{rc}"
+                                       "Virtual Networks #{rc}"
                 end
 
                 service.set_state(Service::STATE['DONE'])
@@ -561,6 +568,9 @@ class ServiceLCM
             service.set_state(Service::STATE['RUNNING'])
             service.roles[role_name].set_state(Role::STATE['RUNNING'])
 
+            # start watching the service
+            @wd.start(service.id, service.roles)
+
             service.update
         end
 
@@ -595,7 +605,7 @@ class ServiceLCM
             Log.info 'WD',
             "Update #{service_id}:#{role_name} cardinality to #{cardinality}"
 
-            @wd.update_node(service_id, role_name, node)
+            @wd.update(service.id, role_name, node)
         end
 
         Log.error 'WD', rc.message if OpenNebula.is_error?(rc)
@@ -631,7 +641,9 @@ class ServiceLCM
 
             service.info
 
-            Thread.new { @wd.start_watching(service.id, service.roles) }
+            if Service::STATE['DONE'] != service.state
+                @wd.start(service.id, service.roles)
+            end
         end
     end
 
