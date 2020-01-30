@@ -603,7 +603,8 @@ class ServiceLCM
             service.update
 
             Log.info 'WD',
-            "Update #{service_id}:#{role_name} cardinality to #{cardinality}"
+                     "Update #{service_id}:#{role_name} " \
+                     "cardinality to #{cardinality}"
 
             @wd.update(service.id, role_name, node)
         end
@@ -641,7 +642,8 @@ class ServiceLCM
 
             service.info
 
-            if Service::STATE['DONE'] != service.state
+            if Service::STATE['RUNNING'] == service.state ||
+               Service::STATE['WARNING'] == service.state
                 @wd.start(service.id, service.roles)
             end
         end

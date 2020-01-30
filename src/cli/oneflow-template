@@ -48,6 +48,14 @@ USER_AGENT = 'CLI'
 RESOURCE_PATH = '/service_template'
 
 CommandParser::CmdParser.new(ARGV) do
+    MULTIPLE = {
+        :name  => 'multiple',
+        :short => '-m x',
+        :large => '--multiple x',
+        :format => Integer,
+        :description => 'Instance multiple templates'
+    }
+
     usage '`oneflow-template` <command> [<args>] [<options>]'
     version OpenNebulaHelper::ONE_VERSION
 
@@ -164,26 +172,30 @@ CommandParser::CmdParser.new(ARGV) do
             instantiate_desc,
             :templateid,
             [:file, nil],
-            :options => [Service::JSON_FORMAT, Service::TOP] do
+            :options => [MULTIPLE, Service::JSON_FORMAT, Service::TOP] do
+        number = options[:multiple] || 1
         params = {}
-        params['merge_template'] = JSON.parse(File.read(args[1])) if args[1]
 
-        json   = Service.build_json_action('instantiate', params)
-        client = helper.client(options)
+        number.times do
+            params['merge_template'] = JSON.parse(File.read(args[1])) if args[1]
 
-        response = client.post("#{RESOURCE_PATH}/#{args[0]}/action", json)
+            json   = Service.build_json_action('instantiate', params)
+            client = helper.client(options)
 
-        if CloudClient.is_error?(response)
-            [response.code.to_i, response.to_s]
-        else
-            if options[:json]
-                [0, response.body]
+            response = client.post("#{RESOURCE_PATH}/#{args[0]}/action", json)
+
+            if CloudClient.is_error?(response)
+                [response.code.to_i, response.to_s]
             else
-                puts "ID: #{JSON.parse(response.body)['DOCUMENT']['ID']}"
-
-                0
+                if options[:json]
+                    [0, response.body]
+                else
+                    puts "ID: #{JSON.parse(response.body)['DOCUMENT']['ID']}"
+                end
             end
         end
+
+        0
     end
 
     ###

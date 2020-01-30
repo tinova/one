@@ -557,7 +557,7 @@ module OpenNebula
             lcm_state_str = VirtualMachine::LCM_STATE[lcm_state.to_i]
 
             if vm_state_str == 'ACTIVE' &&
-                VM_FAILURE_STATES.include?(lcm_state_str)
+               VM_FAILURE_STATES.include?(lcm_state_str)
                 return true
             end
 

@@ -24,6 +24,7 @@ class ServiceWD
     ############################################################################
     # Default configuration options for the module
     ############################################################################
+    LOG_COMP = 'WD'
 
     DEFAULT_CONF = {
         :subscriber_endpoint  => 'tcp://localhost:2101',
@@ -53,6 +54,9 @@ class ServiceWD
 
         @services_nodes   = {}
         @services_threads = {}
+
+        @nodes_mutex   = Mutex.new
+        @threads_mutex = Mutex.new
     end
 
     # Start service WD thread
@@ -60,8 +64,12 @@ class ServiceWD
     # @param service_id [Integer] Service ID to watch
     # @param roles      [Array]   Service roles with its nodes
     def start(service_id, roles)
-        @services_threads[service_id] = Thread.new do
-            start_watching(service_id, roles)
+        Log.info LOG_COMP, "Start watching #{service_id}"
+
+        @threads_mutex.synchronize do
+            @services_threads[service_id] = Thread.new do
+                start_watching(service_id, roles)
+            end
         end
     end
 
@@ -69,8 +77,15 @@ class ServiceWD
     #
     # @param service_id [Integer] Service ID to stop
     def stop(service_id)
-        @services_threads[service_id].terminate
-        @services_threads.delete(service_id)
+        Log.info LOG_COMP, "Stop watching #{service_id}"
+
+        @threads_mutex.synchronize do
+            return if @services_threads[service_id].nil?
+
+            @services_threads[service_id].terminate
+
+            @services_threads.delete(service_id)
+        end
 
         stop_watching(service_id)
     end
@@ -85,12 +100,18 @@ class ServiceWD
 
         unsubscribe(node, subscriber)
 
-        @service_nodes[service_id][role_name].delete(node)
+        @nodes_mutex.synchronize do
+            return if @services_nodes[service_id].nil?
 
-        return unless @service_nodes[service_id][role_name].empty?
+            return if @services_nodes[service_id][role_name].nil?
 
-        # if all role nodes have been deleted, delete the rol
-        @service_nodes[service_id].delete(role_name)
+            @services_nodes[service_id][role_name].delete(node)
+
+            return unless @services_nodes[service_id][role_name].empty?
+
+            # if all role nodes have been deleted, delete the rol
+            @services_nodes[service_id].delete(role_name)
+        end
     end
 
     private
@@ -100,11 +121,13 @@ class ServiceWD
     # @param service_id [Integer] Service ID to watch
     # @param roles      [Array]   Service roles with its nodes
     def start_watching(service_id, roles)
-        @services_nodes[service_id] = {}
+        @nodes_mutex.synchronize do
+            @services_nodes[service_id] = {}
 
-        roles.each do |name, role|
-            @services_nodes[service_id][name] = {}
-            @services_nodes[service_id][name] = role.nodes_ids
+            roles.each do |name, role|
+                @services_nodes[service_id][name] = {}
+                @services_nodes[service_id][name] = role.nodes_ids
+            end
         end
 
         # check that all nodes are in RUNNING state, if not, notify
@@ -113,9 +136,11 @@ class ServiceWD
         # subscribe to all nodes
         subscriber = gen_subscriber
 
-        @services_nodes[service_id].each do |_, nodes|
-            nodes.each do |node|
-                subscribe(node, subscriber)
+        @nodes_mutex.synchronize do
+            @services_nodes[service_id].each do |_, nodes|
+                nodes.each do |node|
+                    subscribe(node, subscriber)
+                end
             end
         end
 
@@ -163,13 +188,15 @@ class ServiceWD
         # unsubscribe from all nodes
         subscriber = gen_subscriber
 
-        @services_nodes[service_id].each do |_, nodes|
-            nodes.each do |node|
-                unsubscribe(node, subscriber)
+        @nodes_mutex.synchronize do
+            @services_nodes[service_id].each do |_, nodes|
+                nodes.each do |node|
+                    unsubscribe(node, subscriber)
+                end
             end
-        end
 
-        @services_nodes.delete(service_id)
+            @services_nodes.delete(service_id)
+        end
     end
 
     # Get OpenNebula client
@@ -232,8 +259,12 @@ class ServiceWD
     #
     # @return nil if don't find, role_name if found
     def find_by_id(service_id, node)
-        ret = @services_nodes[service_id].find do |_, nodes|
-            nodes.include?(node)
+        ret = nil
+
+        @nodes_mutex.synchronize do
+            ret = @services_nodes[service_id].find do |_, nodes|
+                nodes.include?(node)
+            end
         end
 
         ret[0] unless ret.nil?
@@ -261,15 +292,21 @@ class ServiceWD
 
         if WARNING_STATES.include?(vm_lcm_state) ||
            WARNING_STATES.include?(vm_state)
-            action = :error_wd_cb
+            action     = :error_wd_cb
+            action_msg = 'Warning'
         elsif vm_state == 'DONE'
-            action = :done_wd_cb
+            action     = :done_wd_cb
+            action_msg = 'Warning'
         elsif vm_lcm_state == 'RUNNING'
-            action = :running_wd_cb
+            action     = :running_wd_cb
+            action_msg = 'Running'
         else
             # in case there is other state, ignore it
             return
         end
+
+        Log.info LOG_COMP,
+                 "#{action_msg} #{service_id}: #{role_name} is #{vm_state}"
 
         # execute callback
         @lcm.trigger_action(action,

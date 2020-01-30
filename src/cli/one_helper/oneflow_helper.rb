@@ -51,11 +51,11 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
                 d['NAME']
             end
 
-            column :STATE, 'State', :size => 11, :left => true do |d|
+            column :STAT, 'State', :size => 11, :left => true do |d|
                 Service.state_str(d['TEMPLATE']['BODY']['state'])
             end
 
-            default :ID, :USER, :GROUP, :NAME, :STATE
+            default :ID, :USER, :GROUP, :NAME, :STAT
         end
     end
 
