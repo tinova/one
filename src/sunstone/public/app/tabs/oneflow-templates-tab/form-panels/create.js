@@ -26,13 +26,16 @@ define(function(require) {
   var Tips = require('utils/tips');
   var RoleTab = require('tabs/oneflow-templates-tab/utils/role-tab');
   var TemplateUtils = require('utils/template-utils');
+  var CustomTagsTable = require('utils/custom-tags-table');
+  var CustomClassCustomAttrs = 'service_custom_attr';
+  var CustomClassCustomAttrsButton = 'add_service_custom_attr';
 
   /*
     TEMPLATES
    */
 
   var TemplateWizardHTML = require('hbs!./create/wizard');
-  var TemplateAdvancedHTML = require('hbs!./create/advanced');
+  var TemplateAdvancedHTML = require('hbs!./context/html');
 
   /*
     CONSTANTS
@@ -84,7 +87,8 @@ define(function(require) {
 
   function _htmlWizard() {
     return TemplateWizardHTML({
-      'formPanelId': this.formPanelId
+      'formPanelId': this.formPanelId,
+      'customTagsTableHTML': CustomTagsTable.html(CustomClassCustomAttrs,CustomClassCustomAttrsButton, true)
     });
   }
 
@@ -182,6 +186,7 @@ define(function(require) {
     $("#tf_btn_roles", context).trigger("click");
 
     Tips.setup(context);
+    CustomTagsTable.setup(context, true);
     return false;
   }
 
@@ -195,13 +200,24 @@ define(function(require) {
     var ready_status_gate = $('input[name="ready_status_gate"]', context).prop("checked");
 
     var custom_attrs =  {};
+    var network_attrs = {};
 
-    $(".service_networks tbody tr").each(function(){
-      if ($(".service_network_name", $(this)).val()) {
-        var attr_name = $(".service_network_name", $(this)).val();
-        var attr_type = "vnet_id";
-        var attr_desc = $(".service_network_description", $(this)).val();
-        custom_attrs[attr_name] = "M|" + attr_type + "|" + attr_desc;
+    // get values for networks
+    var attr_type = "vnet_id";
+    $(".service_networks tbody > tr").each(function(){
+      var attr_name = $(".service_network_name", $(this)).val();
+      if (attr_name) {
+        var attr_desc = $(".service_network_description", $(this)).val() || '';
+        network_attrs[attr_name] = "M|" + attr_type + "|" + attr_desc;
+      }
+    });
+
+    // get values for custom attributes
+    $("."+CustomClassCustomAttrs+" tbody.custom_tags > tr").each(function(){
+      var attr_name = $(".custom_tag_key", $(this)).val();
+      if (attr_name) {
+        var attr_desc = $(".custom_tag_value", $(this)).val() || '';
+        custom_attrs[attr_name] = "M|" + attr_desc;
       }
     });
 
@@ -220,6 +236,12 @@ define(function(require) {
       roles: roles
     };
 
+    //add networks in post body
+    if (!$.isEmptyObject(network_attrs)){
+      json_template['networks'] = network_attrs;
+    }
+
+    //add custom attributes in post body
     if (!$.isEmptyObject(custom_attrs)){
       json_template['custom_attrs'] = custom_attrs;
     }
@@ -282,10 +304,10 @@ define(function(require) {
 
     $(".service_networks i.remove-tab", context).trigger("click");
 
-    if ( ! $.isEmptyObject( element.TEMPLATE.BODY['custom_attrs'] ) ) {
+    //fill form networks
+    if ( ! $.isEmptyObject( element.TEMPLATE.BODY['networks'] ) ) {
       $("div#network_configuration a.accordion_advanced_toggle", context).trigger("click");
-
-      $.each(element.TEMPLATE.BODY['custom_attrs'], function(key, attr){
+      $.each(element.TEMPLATE.BODY['networks'], function(key, attr){
         var parts = attr.split("|");
         // 0 mandatory; 1 type; 2 desc;
         var attrs = {
@@ -294,17 +316,36 @@ define(function(require) {
           "type": parts[1],
           "description": parts[2],
         };
-
         switch (parts[1]) {
           case "vnet_id":
             $(".add_service_network", context).trigger("click");
-
-            var tr = $(".service_networks tbody tr", context).last();
+            var tr = $(".service_networks tbody > tr", context).last();
             $(".service_network_name", tr).val(attrs.name).change();
             $(".service_network_description", tr).val(attrs.description);
-
             break;
         }
+      });
+    }
+
+    //fill form custom attributes
+    if ( ! $.isEmptyObject( element.TEMPLATE.BODY['custom_attrs'] ) ) {
+      $("div#custom_attr_values a.accordion_advanced_toggle", context).trigger("click");
+      $.each(element.TEMPLATE.BODY['custom_attrs'], function(key, attr){
+        var parts = attr.split("|");
+        // 0 mandatory; 1 desc;
+        var attrs = {
+          "name": key,
+          "mandatory": parts[0],
+          "description": parts[1]
+        };
+        var tr = $("."+CustomClassCustomAttrs+" tbody.custom_tags > tr", context).last();
+        if($(".custom_tag_key", tr).val()){
+          console.log("-->", attrs);
+          $("."+CustomClassCustomAttrsButton, context).trigger("click");
+          tr = $("."+CustomClassCustomAttrs+" tbody.custom_tags > tr", context).last();
+        }
+        $(".custom_tag_key", tr).val(attrs.name);
+        $(".custom_tag_value", tr).val(attrs.description);
       });
     }
 
@@ -442,21 +483,15 @@ define(function(require) {
       var li = $(this).closest('li');
       var ul = $(this).closest('ul');
       var content = $(target);
-
       var role_id = content.attr("role_id");
-
       li.remove();
       content.remove();
-
       if (li.hasClass('is-active')) {
         $('a', ul.children('li').last()).click();
       }
-
       delete that.roleTabObjects[role_id];
-
       return false;
     });
-
     role_tab.setup(role_section);
     role_tab.onShow();
   }

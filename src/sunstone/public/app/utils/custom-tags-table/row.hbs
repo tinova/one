@@ -14,8 +14,8 @@
 {{! limitations under the License.                                             }}
 {{! -------------------------------------------------------------------------- }}
 
-<tr>
-  <td style="display: flex; justify-content: flex-start">
+<tr style="vertical-align:top">
+  <td style="{{#if styles }}display: flex; justify-content: flex-start{{/if}}">
     <input class="custom_tag_key" type="text" name="key" value="{{key}}">
   </td>
   <td>
@@ -36,7 +36,7 @@
       </tfoot>
     </table>
   </td>
-  <td style="width: 150%; display: flex; justify-content: flex-end">
+  <td style="{{#if styles }}width: 150%; display: flex; justify-content: flex-end; {{/if}}text-align: right;">
     <a href="#"><i class="fas fa-times-circle remove-tab"></i></a>
   </td>
 </tr>
