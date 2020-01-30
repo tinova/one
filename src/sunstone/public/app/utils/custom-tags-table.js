@@ -24,9 +24,18 @@ define(function(require) {
   var TemplateUtils = require('utils/template-utils');
   var WizardFields = require('utils/wizard-fields');
   var Sunstone = require('sunstone');
+  var removedStyles = false;
 
-  function _html(){
-    return TemplateHTML();
+  function _html(classTable, classButton, removeStyles){
+    var classTableName = classTable && classTable.length>0 ? classTable : '';
+    var classButtonName = classButton && classButton.length>0 ? classButton : '';
+    if(removeStyles){
+      removedStyles = removeStyles;
+    } 
+    return TemplateHTML({
+      'classTable': classTableName,
+      'classButton': classButtonName
+    });
   }
 
   function _setup(context, hide_vector_button, resourceType, element, elementID){
@@ -35,7 +44,11 @@ define(function(require) {
     }
     context.off("click", ".add_custom_tag");
     context.on("click", ".add_custom_tag", function(){
-      $("tbody.custom_tags", context).append(RowTemplateHTML());
+      $("tbody.custom_tags", context).append(
+        RowTemplateHTML({
+          styles: !removedStyles
+        })
+      );
       if(hide_vector_button){
         $(".change_to_vector_attribute", context).hide();
         $(".custom_tag_value",context).focusout(function(){
@@ -43,8 +56,10 @@ define(function(require) {
           if(element && !element.CAPACITY){
             element.CAPACITY = {};
           }
-          element.CAPACITY[key] = this.value;
-          Sunstone.runAction(resourceType+".update_template",elementID, TemplateUtils.templateToString(element));
+          if(element && element.CAPACITY){
+            element.CAPACITY[key] = this.value;
+            Sunstone.runAction(resourceType+".update_template",elementID, TemplateUtils.templateToString(element));  
+          }
         });
       }
     });
@@ -75,7 +90,7 @@ define(function(require) {
       tr.remove();
       if(hide_vector_button){
         var key = $(".custom_tag_key",this.parentElement.parentElement.parentElement).val()
-        if(element && element.CAPACITY && element.CAPACITY[key]){
+        if(element && element.CAPACITY && element.CAPACITY[key] && elementID){
           delete element.CAPACITY[key];
           Sunstone.runAction(resourceType+".update_template",elementID, TemplateUtils.templateToString(element));
         }
