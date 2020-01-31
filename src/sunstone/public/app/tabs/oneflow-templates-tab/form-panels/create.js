@@ -88,7 +88,11 @@ define(function(require) {
   function _htmlWizard() {
     return TemplateWizardHTML({
       'formPanelId': this.formPanelId,
-      'customTagsTableHTML': CustomTagsTable.html(CustomClassCustomAttrs,CustomClassCustomAttrsButton, true)
+      'customTagsTableHTML': CustomTagsTable.html(
+        CustomClassCustomAttrs,
+        CustomClassCustomAttrsButton, 
+        true
+      )
     });
   }
 
@@ -340,7 +344,6 @@ define(function(require) {
         };
         var tr = $("."+CustomClassCustomAttrs+" tbody.custom_tags > tr", context).last();
         if($(".custom_tag_key", tr).val()){
-          console.log("-->", attrs);
           $("."+CustomClassCustomAttrsButton, context).trigger("click");
           tr = $("."+CustomClassCustomAttrs+" tbody.custom_tags > tr", context).last();
         }

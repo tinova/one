@@ -19,8 +19,8 @@
     <table class="dataTable policies_table {{classTable}}">
       <thead>
         <tr>
-          <th>{{tr "Key"}}</th>
-          <th>{{tr "Value"}}</th>
+          <th>{{#if titleKey }}{{titleKey}}{{else}}{{tr "Key"}}{{/if}}</th>
+          <th>{{#if titleValue }}{{titleValue}}{{else}}{{tr "Value"}}{{/if}}</th>
           <th></th>
         </tr>
       </thead>

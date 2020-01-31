@@ -33,6 +33,8 @@ define(function(require) {
       removedStyles = removeStyles;
     } 
     return TemplateHTML({
+      'titleKey': Locale.tr("Name"),
+      'titleValue': Locale.tr("Description"),
       'classTable': classTableName,
       'classButton': classButtonName
     });
