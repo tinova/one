@@ -237,7 +237,6 @@ define(function(require) {
       newData[k.replace(prefix,"")] = internal;
       return newData;
     }, {});
-    debugger
     //parse to array
     Object.keys(networks).map(function(key_network){
       network_values.push(networks[key_network]);
