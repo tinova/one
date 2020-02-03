@@ -209,14 +209,16 @@ define(function(require) {
     var extra_info = {
       "merge_template": {}
     };
-    var tmp_json = WizardFields.retrieve($("#instantiate_service_user_inputs", context));
+    var networks_json = WizardFields.retrieve($(".network_attrs_class", context));
+    var custom_attrs_json = WizardFields.retrieve($(".custom_attr_class", context));
     var network_values = [];
     var prefix = "type_";
-    var networks = Object.keys(tmp_json).filter(function(k) {
+    
+    var networks = Object.keys(networks_json).filter(function(k) {
       return k.indexOf('type_') == 0;
     }).reduce(function(newData, k) {
       var key = "id";
-      switch (tmp_json[k]) {
+      switch (networks_json[k]) {
         case "create":
           key = "template_id";
         break;
@@ -228,24 +230,25 @@ define(function(require) {
       }
       var internal = {};
       internal[k.replace(prefix,"")] = {};
-      internal[k.replace(prefix,"")][key] = tmp_json[k.replace(prefix,"")];
-      if(tmp_json[k] === "create" || tmp_json[k] === "reserve"){
-        internal[k.replace(prefix,"")].extra = tmp_json["extra_"+k.replace(prefix,"")];
+      internal[k.replace(prefix,"")][key] = networks_json[k.replace(prefix,"")];
+      if(networks_json[k] === "create" || networks_json[k] === "reserve"){
+        internal[k.replace(prefix,"")].extra = networks_json["extra_"+k.replace(prefix,"")];
       }
       newData[k.replace(prefix,"")] = internal;
       return newData;
     }, {});
+    debugger
     //parse to array
     Object.keys(networks).map(function(key_network){
       network_values.push(networks[key_network]);
     });
-    //extra_info.merge_template.custom_attrs_values = tmp_json; //OLD
-    extra_info.merge_template.custom_attrs_values = {};
+
+    extra_info.merge_template.custom_attrs_values = custom_attrs_json;
     extra_info.merge_template.networks_values = network_values;
     extra_info.merge_template.roles = [];
     $.each(that.service_template_json.DOCUMENT.TEMPLATE.BODY.roles, function(index, role){
       var div_id = "user_input_role_"+index;
-      tmp_json = {};
+      var tmp_json = {};
       $.extend( tmp_json, WizardFields.retrieve($("#"+div_id, context)) );
       role.user_inputs_values = tmp_json;
       extra_info.merge_template.roles.push(role);
