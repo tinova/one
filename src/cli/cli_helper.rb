@@ -180,7 +180,7 @@ module CLIHelper
                         err
                         error
                         ERROR
-                        FAILED_UNDEPLOYING
+                        FAILED_DEPLOYING
                         FAILED_UNDEPLOYING
                         FAILED_SCALING]
     REGULAR_STATES = %w[pending WARNING]

@@ -160,6 +160,8 @@ class OneFlowTemplateHelper < OpenNebulaHelper::OneHelper
     #
     # @return [Hash] Custom attributes values
     def custom_attrs(custom_attrs)
+        return unless custom_attrs
+
         puts 'There are some custom attrs which need a value'
 
         ret = {}
