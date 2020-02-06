@@ -20,9 +20,11 @@ ONE_LOCATION = ENV['ONE_LOCATION']
 
 if !ONE_LOCATION
     RUBY_LIB_LOCATION = '/usr/lib/one/ruby'
+    ONEFLOW_LOCATION  = '/usr/lib/one/oneflow/lib'
     GEMS_LOCATION     = '/usr/share/one/gems'
 else
     RUBY_LIB_LOCATION = ONE_LOCATION + '/lib/ruby'
+    ONEFLOW_LOCATION  = ONE_LOCATION + '/lib/oneflow/lib'
     GEMS_LOCATION     = ONE_LOCATION + '/share/gems'
 end
 
@@ -31,7 +33,9 @@ if File.directory?(GEMS_LOCATION)
 end
 
 $LOAD_PATH << RUBY_LIB_LOCATION
+$LOAD_PATH << ONEFLOW_LOCATION
 $LOAD_PATH << RUBY_LIB_LOCATION + '/cli'
+$LOAD_PATH << RUBY_LIB_LOCATION + '/oneflow/lib'
 
 require 'json'
 require 'English'
@@ -39,6 +43,7 @@ require 'tempfile'
 
 require 'command_parser'
 require 'opennebula/oneflow_client'
+require 'models'
 require 'cli_helper'
 require 'one_helper/oneflowtemplate_helper'
 
@@ -175,27 +180,44 @@ CommandParser::CmdParser.new(ARGV) do
             :options => [MULTIPLE, Service::JSON_FORMAT, Service::TOP] do
         number = options[:multiple] || 1
         params = {}
+        rc     = 0
 
         number.times do
+            params['merge_template'] = nil
             params['merge_template'] = JSON.parse(File.read(args[1])) if args[1]
 
-            json   = Service.build_json_action('instantiate', params)
-            client = helper.client(options)
+            unless params['merge_template']
+                service_template = OpenNebula::ServiceTemplate
+                                   .new_with_id(args[0],
+                                                OpenNebula::Client.new)
+                service_template.info
 
+                body = JSON.parse(service_template['/DOCUMENT/TEMPLATE/BODY'])
+
+                params['merge_template'] = helper.custom_attrs(
+                    body['custom_attrs']
+                )
+            end
+
+            json     = Service.build_json_action('instantiate', params)
+            client   = helper.client(options)
             response = client.post("#{RESOURCE_PATH}/#{args[0]}/action", json)
 
             if CloudClient.is_error?(response)
-                [response.code.to_i, response.to_s]
+                rc = [response.code.to_i, response.to_s]
+                break
             else
                 if options[:json]
-                    [0, response.body]
+                    rc = [0, response.body]
+                    break
                 else
+                    rc = 0
                     puts "ID: #{JSON.parse(response.body)['DOCUMENT']['ID']}"
                 end
             end
         end
 
-        0
+        rc
     end
 
     ###

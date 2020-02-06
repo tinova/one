@@ -491,6 +491,11 @@ post '/service_template/:id/action' do
                                   VALIDATION_EC)
         end
 
+        if custom_attrs && !custom_attrs_values
+            return internal_error('No custom_attrs_values found',
+                                  VALIDATION_EC)
+        end
+
         if custom_attrs &&
            custom_attrs_values &&
            !(custom_attrs.keys - custom_attrs_values.keys).empty?
