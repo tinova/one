@@ -11,9 +11,9 @@ module OneDBFsck
                 }
             end
 
-            doc = Document.new(row[:body])
+            doc = nokogiri_doc(row[:body], 'image_pool')
 
-            doc.root.each_element("CLONING_ID") do |e|
+            doc.root.xpath("CLONING_ID") do |e|
                 img_id = e.text.to_i
 
                 if counters[:image][img_id].nil?
@@ -34,12 +34,12 @@ module OneDBFsck
 
         @db.transaction do
             @db[:image_pool].each do |row|
-                doc = Document.new(row[:body])
+                doc = nokogiri_doc(row[:body], 'image_pool')
 
                 oid = row[:oid]
 
-                persistent = ( doc.root.get_text('PERSISTENT').to_s == "1" )
-                current_state = doc.root.get_text('STATE').to_s.to_i
+                persistent = ( doc.root.xpath('PERSISTENT').text == "1" )
+                current_state = doc.root.xpath('STATE').text.to_i
 
                 counters_img = counters[:image][oid]
 
@@ -48,7 +48,7 @@ module OneDBFsck
 
                 # DATA: CHECK: running vm counter with this image
                 # rewrite running_vms
-                doc.root.each_element("RUNNING_VMS") {|e|
+                doc.root.xpath("RUNNING_VMS") {|e|
                     if e.text != rvms.to_s
                         log_error("Image #{oid} RUNNING_VMS has #{e.text} \tis\t#{rvms}")
                         e.text = rvms
@@ -56,9 +56,10 @@ module OneDBFsck
                 }
 
                 # re-do list of VM IDs
-                vms_elem = doc.root.elements.delete("VMS")
+                vms_elem = doc.root.xpath("VMS").remove
 
-                vms_new_elem = doc.root.add_element("VMS")
+                vms_new_elem = doc.create_element("VMS")
+                doc.root.add_child(vms_new_elem)
 
                 # DATA: CHECK: running vm list with this image
                 counters_img[:vms].each do |id|
@@ -68,10 +69,11 @@ module OneDBFsck
                         log_error("VM #{id} is missing from Image #{oid} VM id list")
                     end
 
-                    vms_new_elem.add_element("ID").text = id.to_s
+                    i_e = doc.create_element('ID')
+                    vms_new_elem.add_child(i_e).content = id.to_s
                 end
 
-                vms_elem.each_element("ID") do |id_elem|
+                vms_elem.xpath("ID") do |id_elem|
                     log_error("VM #{id_elem.text} is in Image #{oid} VM id list, but it should not")
                 end
 
@@ -83,7 +85,7 @@ module OneDBFsck
                 end
 
                 # DATA: CHECK: Check number of clones
-                doc.root.each_element("CLONING_OPS") { |e|
+                doc.root.xpath("CLONING_OPS") { |e|
                     if e.text != n_cloning_ops.to_s
                         log_error("Image #{oid} CLONING_OPS has #{e.text} \tis\t#{n_cloning_ops}")
                         e.text = n_cloning_ops
@@ -91,9 +93,10 @@ module OneDBFsck
                 }
 
                 # re-do list of Images cloning this one
-                clones_elem = doc.root.elements.delete("CLONES")
+                clones_elem = doc.root.xpath("CLONES").remove
 
-                clones_new_elem = doc.root.add_element("CLONES")
+                clones_new_elem = doc.create_element("CLONES")
+                doc.root.add_child(clones_new_elem)
 
                 # DATA: CHECK: image clones (is it used?)
                 counters_img[:clones].each do |id|
@@ -103,17 +106,19 @@ module OneDBFsck
                         log_error("Image #{id} is missing from Image #{oid} CLONES id list")
                     end
 
-                    clones_new_elem.add_element("ID").text = id.to_s
+                    i_e = doc.create_element('ID')
+                    clones_new_elem.add_child(i_e).content = id.to_s
                 end
 
-                clones_elem.each_element("ID") do |id_elem|
+                clones_elem.xpath("ID") do |id_elem|
                     log_error("Image #{id_elem.text} is in Image #{oid} CLONES id list, but it should not")
                 end
 
                 # re-do list of Apps cloning this one
-                clones_elem = doc.root.elements.delete("APP_CLONES")
+                clones_elem = doc.root.xpath("APP_CLONES").remove
 
-                clones_new_elem = doc.root.add_element("APP_CLONES")
+                clones_new_elem = doc.create_element("APP_CLONES")
+                doc.root.add_child(clones_new_elem)
 
                 # DATA: CHECK: check app clones
                 # DATA: TODO: understand app clones and image clones
@@ -124,10 +129,11 @@ module OneDBFsck
                         log_error("Marketplace App #{id} is missing from Image #{oid} APP_CLONES id list")
                     end
 
-                    clones_new_elem.add_element("ID").text = id.to_s
+                    h_e = doc.create_element('ID')
+                    clones_new_elem.add_child(i_e).content = id.to_s
                 end
 
-                clones_elem.each_element("ID") do |id_elem|
+                clones_elem.xpath("ID") do |id_elem|
                     log_error("Marketplace App #{id_elem.text} is in Image #{oid} APP_CLONES id list, but it should not")
                 end
 
@@ -159,7 +165,7 @@ module OneDBFsck
                     end
                 end
 
-                doc.root.each_element("STATE") { |e|
+                doc.root.xpath("STATE") { |e|
                     if e.text != state.to_s
                         log_error("Image #{oid} has STATE " <<
                             OpenNebula::Image::IMAGE_STATES[e.text.to_i] <<

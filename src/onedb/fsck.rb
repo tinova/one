@@ -109,9 +109,63 @@ EOT
         FEDERATED_TABLES
     end
 
-    def nokogiri_doc(body)
-        Nokogiri::XML(body, nil, NOKOGIRI_ENCODING) do |c|
+    def nokogiri_doc(body, table = nil)
+        nk_enconding = NOKOGIRI_ENCODING
+
+        unless table.nil?
+            nk_enconding = get_table_enconding(table)
+        end
+
+        Nokogiri::XML(body, nil, nk_enconding) do |c|
             c.default_xml.noblanks
+        end
+    end
+
+    def get_table_enconding(table)
+        enconding = nil
+
+        @db.fetch(
+            'select CCSA.character_set_name FROM information_schema.' \
+            '`TABLES` T, information_schema.' \
+            '`COLLATION_CHARACTER_SET_APPLICABILITY` CCSA WHERE ' \
+            'CCSA.collation_name = T.table_collation AND ' \
+            "T.table_schema = '#{@db_name}' AND "\
+            "T.table_name = '#{table}';"
+        ) do |row|
+            enconding = row[:character_set_name]
+        end
+
+        table_to_nk(enconding)
+    end
+
+    def table_to_nk(enconding)
+        case(enconding)
+        when 'utf8mb4'
+            'UTF-8'
+        when 'utf16le'
+            'UTF16LE'
+        when 'utf16'
+            'UTF16BE'
+        when 'ucs2'
+            'UCS2'
+        when 'latin1'
+            'ISO-8859-1'
+        when 'latin2'
+            'ISO-8859-2'
+        when 'greek'
+            'ISO-8859-7'
+        when 'hebrew'
+            'ISO-8859-8'
+        when 'latin5'
+            'ISO-8859-9'
+        when 'sjis'
+            'SHIFT-JIS'
+        when 'ujis'
+            'EUC-JP'
+        when 'ascii'
+            'ASCII'
+        else
+            'NONE'
         end
     end
 
