@@ -35,7 +35,7 @@ define(function(require) {
    */
 
   var TemplateWizardHTML = require('hbs!./create/wizard');
-  var TemplateAdvancedHTML = require('hbs!./context/html');
+  var TemplateAdvancedHTML = require('hbs!./create/advanced');
 
   /*
     CONSTANTS
