@@ -18,6 +18,7 @@
 require 'strategy'
 require 'ActionManager'
 require 'ServiceWatchDog'
+require 'ServiceAutoScaler'
 
 # Service Life Cycle Manager
 class ServiceLCM
@@ -88,6 +89,11 @@ class ServiceLCM
         Thread.new { @am.start_listener }
 
         Thread.new { catch_up(client) }
+
+        Thread.new do
+            auto_scaler = ServiceAutoScaler.new(@srv_pool)
+            auto_scaler.start
+        end
     end
 
     # Change service ownership

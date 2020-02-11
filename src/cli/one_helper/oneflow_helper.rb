@@ -304,6 +304,11 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
                 puts Kernel.format(str, 'SHUTDOWN', role['shutdown_action'])
             end
 
+            if role['elasticity_policies'] &&
+               !role['elasticity_policies'].empty?
+                print_elasticity_info(role)
+            end
+
             CLIHelper.print_header('NODES INFORMATION', false)
 
             format_node_pool.show(role['nodes'])
@@ -312,6 +317,67 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
         end
 
         puts
+    end
+
+    # Get policy adjust information in str format
+    #
+    # @param policy [Hash] Policy information
+    def self.adjust_str(policy)
+        policy['adjust'].to_i >= 0 ? sign = '+' : sign = '-'
+        adjust = policy['adjust'].to_i.abs
+
+        case policy['type']
+        when 'CARDINALITY'
+            "= #{adjust}"
+        when 'PERCENTAGE_CHANGE'
+            st = "#{sign} #{adjust} %"
+
+            if policy['min_adjust_step']
+                st << " (#{policy['min_adjust_step']})"
+            end
+
+            st
+        else
+            "#{sign} #{adjust}"
+        end
+    end
+
+    # Print role elasticity info
+    #
+    # @param role [OpenNebula::Role] Role information
+    def print_elasticity_info(role)
+        CLIHelper::ShowTable.new(nil, self) do
+            column :ADJUST, '', :left, :size => 12 do |d|
+                OneFlowHelper.adjust_str(d)
+            end
+
+            column :EXPRESSION, '', :left, :size => 48 do |d|
+                if !d['expression_evaluated'].nil?
+                    d['expression_evaluated']
+                else
+                    d['expression']
+                end
+            end
+
+            column :EVALS, '', :right, :size => 5 do |d|
+                if d['period_number']
+                    "#{d['true_evals'].to_i}/"\
+                    "#{d['period_number']}"
+                else
+                    '-'
+                end
+            end
+
+            column :PERIOD, '', :size => 6 do |d|
+                d['period'] ? "#{d['period']}s" : '-'
+            end
+
+            column :COOL, '', :size => 5 do |d|
+                d['cooldown'] ? "#{d['cooldown']}s" : '-'
+            end
+
+            default :ADJUST, :EXPRESSION, :EVALS, :PERIOD, :COOL
+        end.show([role['elasticity_policies']].flatten, {})
     end
 
 end

@@ -239,6 +239,10 @@ module OpenNebula
             @body['nodes'].map {|node| node['deploy_id'] }
         end
 
+        def elasticity_policies
+            @body['elasticity_policies']
+        end
+
         # Sets a new state
         # @param [Integer] the new state
         # @return [true, false] true if the value was changed
@@ -700,6 +704,43 @@ module OpenNebula
             rc
         end
 
+        # Returns a positive, 0, or negative number of nodes to adjust,
+        #   according to the elasticity and scheduled policies
+        # @return [Array<Integer>] positive, 0, or negative number of nodes to
+        #   adjust, plus the cooldown period duration
+        def scale?
+            elasticity_pol = @body['elasticity_policies']
+            scheduled_pol  = @body['scheduled_policies']
+
+            elasticity_pol ||= []
+            scheduled_pol  ||= []
+
+            scheduled_pol.each do |policy|
+                diff = scale_time?(policy)
+
+                return [diff, 0] if diff != 0
+            end
+
+            elasticity_pol.each do |policy|
+                diff, cooldown_duration = scale_attributes?(policy)
+
+                next if diff == 0
+
+                cooldown_duration = @body['cooldown'] if cooldown_duration.nil?
+                cooldown_duration = @@default_cooldown if cooldown_duration.nil?
+
+                return [diff, cooldown_duration]
+            end
+
+            # Implicit rule that scales up to maintain the min_cardinality, with
+            # no cooldown period
+            if cardinality < min_cardinality.to_i
+                return [min_cardinality.to_i - cardinality, 0]
+            end
+
+            [0, 0]
+        end
+
         private
 
         # Shuts down all the given nodes
@@ -795,6 +836,189 @@ module OpenNebula
             end
 
             false
+        end
+
+        # Returns a positive, 0, or negative number of nodes to adjust,
+        #   according to a SCHEDULED type policy
+        # @param [Hash] A SCHEDULED type policy
+        # @return [Integer] positive, 0, or negative number of nodes to adjust
+        def scale_time?(elasticity_pol)
+            now       = Time.now.to_i
+            last_eval = elasticity_pol['last_eval'].to_i
+
+            elasticity_pol['last_eval'] = now
+
+            # If this is the first time this is evaluated, ignore it.
+            # We don't want to execute actions planned in the past when the
+            # server starts.
+
+            return 0 if last_eval == 0
+
+            start_time = elasticity_pol['start_time']
+            target_vms = elasticity_pol['adjust']
+
+            # TODO: error msg
+            return 0 if target_vms.nil?
+
+            if !(start_time.nil? || start_time.empty?)
+                begin
+                    start_time = Time.parse(start_time).to_i
+                rescue ArgumentError
+                    # TODO: error msg
+                    return 0
+                end
+            else
+                recurrence = elasticity_pol['recurrence']
+
+                # TODO: error msg
+                return 0 if recurrence.nil? || recurrence.empty?
+
+                begin
+                    cron_parser = CronParser.new(recurrence)
+
+                    # This returns the next planned time, starting from the last
+                    # step
+                    start_time = cron_parser.next(Time.at(last_eval)).to_i
+                rescue StandardError
+                    # TODO: error msg bad format
+                    return 0
+                end
+            end
+
+            # Only actions planned between last step and this one are triggered
+            if start_time > last_eval && start_time <= now
+                Log.debug LOG_COMP,
+                          "Role #{name} : scheduled scalability for " \
+                          "#{Time.at(start_time)} triggered", @service.id
+
+                new_cardinality = calculate_new_cardinality(elasticity_pol)
+
+                return new_cardinality - cardinality
+            end
+
+            0
+        end
+
+        # Returns a positive, 0, or negative number of nodes to adjust,
+        #   according to a policy based on attributes
+        # @param [Hash] A policy based on attributes
+        # @return [Array<Integer>] positive, 0, or negative number of nodes to
+        #   adjust, plus the cooldown period duration
+        def scale_attributes?(elasticity_pol)
+            now = Time.now.to_i
+
+            # TODO: enforce true_up_evals type in ServiceTemplate::ROLE_SCHEMA ?
+
+            period_duration = elasticity_pol['period'].to_i
+            period_number   = elasticity_pol['period_number'].to_i
+            last_eval       = elasticity_pol['last_eval'].to_i
+            true_evals      = elasticity_pol['true_evals'].to_i
+            expression      = elasticity_pol['expression']
+
+            if !last_eval.nil?
+                if now < (last_eval + period_duration)
+                    return [0, 0]
+                end
+            end
+
+            elasticity_pol['last_eval'] = now
+
+            new_cardinality = cardinality
+            new_evals       = 0
+
+            exp_value, exp_st = scale_rule(expression)
+
+            if exp_value
+                new_evals = true_evals + 1
+                new_evals = period_number if new_evals > period_number
+
+                if new_evals >= period_number
+                    Log.debug LOG_COMP,
+                              "Role #{name} : elasticy policy #{exp_st} "\
+                              'triggered', @service.id
+
+                    new_cardinality = calculate_new_cardinality(elasticity_pol)
+                end
+            end
+
+            elasticity_pol['true_evals']           = new_evals
+            elasticity_pol['expression_evaluated'] = exp_st
+
+            [new_cardinality - cardinality, elasticity_pol['cooldown']]
+        end
+
+        # Returns true if the scalability rule is triggered
+        # @return true if the scalability rule is triggered
+        def scale_rule(elas_expr)
+            parser = ElasticityGrammarParser.new
+
+            if elas_expr.nil? || elas_expr.empty?
+                return false
+            end
+
+            treetop = parser.parse(elas_expr)
+
+            if treetop.nil?
+                return [false,
+                        "Parse error. '#{elas_expr}': #{parser.failure_reason}"]
+            end
+
+            val, st = treetop.result(self)
+
+            [val, st]
+        end
+
+        def calculate_new_cardinality(elasticity_pol)
+            type   = elasticity_pol['type']
+            adjust = elasticity_pol['adjust'].to_i
+
+            # Min is a hard limit, if the current cardinality + adjustment does
+            # not reach it, the difference is added
+
+            max = [cardinality, max_cardinality.to_i].max()
+            # min = [cardinality(), min_cardinality.to_i].min()
+            min = min_cardinality.to_i
+
+            case type.upcase
+            when 'CHANGE'
+                new_cardinality = cardinality + adjust
+            when 'PERCENTAGE_CHANGE'
+                min_adjust_step = elasticity_pol['min_adjust_step'].to_i
+
+                change = cardinality * adjust / 100.0
+
+                change > 0 ? sign = 1 : sign = -1
+                change = change.abs
+
+                if change < 1
+                    change = 1
+                else
+                    change = change.to_i
+                end
+
+                change = sign * [change, min_adjust_step].max
+
+                new_cardinality = cardinality + change
+
+            when 'CARDINALITY'
+                new_cardinality = adjust
+            else
+                # TODO: error message
+                return cardinality
+            end
+
+            # The cardinality can be forced to be outside the min,max
+            # range. If that is the case, the scale up/down will not
+            # move further outside the range. It will move towards the
+            # range with the adjustement set, instead of jumping the
+            # difference
+            if adjust > 0
+                new_cardinality = max if new_cardinality > max
+            elsif adjust < 0
+                new_cardinality = min if new_cardinality < min
+            end
+
+            new_cardinality
         end
 
     end
