@@ -70,6 +70,7 @@ define(function(require) {
   WizardTab.prototype.renameTabLinks = _renameTabLinks;
   WizardTab.prototype.addNicTab = _addNicTab;
   WizardTab.prototype.notify = _notify;
+  WizardTab.prototype.enableRDP = _enableRDP;
 
   return WizardTab;
 
@@ -202,6 +203,7 @@ define(function(require) {
     });
 
     that.renameTabLinks(context);
+    that.enableRDP(context);
 
     if (templateJSON.NIC) {
       delete templateJSON.NIC;
@@ -270,6 +272,7 @@ define(function(require) {
     content.attr("nicId", that.numberOfNics);
 
     that.renameTabLinks(context);
+    that.enableRDP(context);
     that.nicTabObjects[that.numberOfNics] = nicTab;
 
     // close icon: removing the tab on click
@@ -293,6 +296,7 @@ define(function(require) {
       }
 
       that.renameTabLinks(context);
+      that.enableRDP(context);
       that.numberOfNics --;
     });
   }
@@ -311,6 +315,13 @@ define(function(require) {
     if(this.listener != undefined){
       this.listener.notify();
     }
+  }
+
+  function _enableRDP(context) {
+    const canRDP = $("fieldset#rdp_connection input[type='checkbox']:not(#" + that.nicTabId + "_rdp):checked", context).length === 0;
+
+    if (canRDP) $("fieldset#rdp_connection").show();
+    else $("fieldset#rdp_connection", that.context).hide();
   }
 
   function _notify(context, templateJSON) {
