@@ -91,7 +91,7 @@ class ServiceLCM
         Thread.new { catch_up(client) }
 
         Thread.new do
-            auto_scaler = ServiceAutoScaler.new(@srv_pool)
+            auto_scaler = ServiceAutoScaler.new(@srv_pool, em_conf)
             auto_scaler.start
         end
     end

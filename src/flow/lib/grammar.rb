@@ -924,7 +924,7 @@ module ElasticityGrammar
   module Variable3
 
     def result(role)
-        nodes = role.get_nodes
+        nodes = role.nodes
         total = 0
         n_nodes = 0
         att = text_value.upcase

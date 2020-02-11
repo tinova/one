@@ -20,9 +20,15 @@ class ServiceAutoScaler
 
     LOG_COMP = 'AE'
 
-    def initialize(service_pool, interval = 30)
-        @interval = interval
-        @srv_pool = service_pool
+    def initialize(service_pool, options, interval = 1)
+        @conf       = options
+
+        @lcm        = options[:lcm]
+        @interval   = interval
+        @srv_pool   = service_pool
+
+        @cloud_auth = @conf[:cloud_auth]
+        @client     = client
     end
 
     def start
@@ -36,7 +42,9 @@ class ServiceAutoScaler
                          'Checking elasticity policies for ' \
                          "service: #{service['/DOCUMENT/ID']}"
 
-                scale(service)
+                # TODO skip done
+
+                apply_scaling_policies(service)
             end
 
             sleep(@interval)
@@ -45,26 +53,34 @@ class ServiceAutoScaler
 
     private
 
-    def scale(service)
-        service.roles.each do |_, role|
-            elasticity_policies = role.elasticity_policies
+    # Get OpenNebula client
+    def client
+        # If there's a client defined use it
+        return @client unless @client.nil?
 
-            next if elasticity_policies.empty?
+        # If not, get one via cloud_auth
+        @cloud_auth.client
+    end
 
-            elasticity_policies.each do |policy|
-                case policy['type']
-                when 'CHANGE'
-                    split_expr = policy['expression']
+    # If a role needs to scale, its cardinality is updated, and its state is set
+    # to SCALING. Only one role is set to scale.
+    # @param  [Service] service
+    def apply_scaling_policies(service)
+        Log.debug LOG_COMP, 'Apply scaling policies', service.id
 
-                    if split_expr.size < 3
-                        Log.error LOG_COMP,
-                                  "Error in expression #{policy['expression']}"
-                    end
+        service.roles.each do |name, role|
+            diff, cooldown_duration = role.scale?
 
-                    expr_attr, expr_sign, expr_value = split_expr
-                end
-require 'pry'
-binding.pry
+            if diff != 0
+                Log.debug LOG_COMP,
+                          "Role #{name} needs to scale #{diff} nodes",
+                          service.id
+
+                @lcm.scale_action(client,
+                                  service.id,
+                                  name,
+                                  role.cardinalit + diff,
+                                  false)
             end
         end
     end
