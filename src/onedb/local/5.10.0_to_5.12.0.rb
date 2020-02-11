@@ -42,15 +42,18 @@ module Migrator
 
         create_table(:document_pool)
 
+        # VM information to get
         info = %w[ID UID GID UNAME GNAME NAME]
+
+        STDERR.puts 'All custom_attrs will be used as networks'
 
         @db.transaction do
             @db.fetch('SELECT * FROM old_document_pool') do |row|
-                xml = Nokogiri::XML(row[:body], nil, NOKOGIRI_ENCODING) do |c|
+                doc = Nokogiri::XML(row[:body], nil, NOKOGIRI_ENCODING) do |c|
                     c.default_xml.noblanks
                 end
 
-                json = JSON.parse(xml.xpath('//BODY').text)
+                json = JSON.parse(doc.xpath('//BODY').text)
 
                 json['networks']     = json['custom_attrs']
                 json['custom_attrs'] = {}
@@ -70,9 +73,9 @@ module Migrator
                     end
                 end
 
-                xml.xpath('DOCUMENT/TEMPLATE/BODY')[0].children[0].content = json.to_json
+                doc.xpath('DOCUMENT/TEMPLATE/BODY')[0].children[0].content = json.to_json
 
-                row[:body] = xml.root.to_s
+                row[:body] = doc.root.to_s
 
                 @db[:document_pool].insert(row)
             end
