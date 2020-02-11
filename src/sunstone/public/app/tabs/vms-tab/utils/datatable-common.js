@@ -95,6 +95,22 @@ define(function(require) {
     return rtn;
   }
 
+  function renderMapIps(element){
+    //aca la validacion si posee context, nics y la configuracion
+    if(
+      element && 
+      element.STIME && 
+      element.USER_TEMPLATE && 
+      element.USER_TEMPLATE.SCHED_ACTION && 
+      config && 
+      config.system_config &&
+      config.system_config.leases
+    ){
+
+    }
+    console.log("PASO", element, config);
+  }
+
   function leasesClock(element){
     var rtn = "";
     if(
@@ -230,7 +246,7 @@ define(function(require) {
       cpuMonitoring,
       Humanize.size(memoryMonitoring),
       hostname,
-      OpenNebulaVM.ipsStr(element),
+      OpenNebulaVM.ipsStr(element)+renderMapIps(element),
       Humanize.prettyTimeDatatable(element.STIME),
       vncIcon,
       TemplateUtils.htmlEncode(TemplateUtils.templateToString(element)),
