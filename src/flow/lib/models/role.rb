@@ -235,12 +235,48 @@ module OpenNebula
             @body['nodes']
         end
 
+        def info_nodes(client)
+            ret = []
+
+            @body['nodes'].each do |node|
+                vm = OpenNebula::VirtualMachine.new_with_id(node['deploy_id'],
+                                                            client)
+                rc = vm.info
+
+                if OpenNebula.is_error?(rc)
+                    Log.error LOG_COMP,
+                              "Error getting VM #{node['deploy_id']}",
+                              @service.id
+                else
+                    obj = {}
+                    obj['deploy_id'] = node['deploy_id']
+                    obj['vm_info']   = vm.to_hash
+
+                    ret << obj
+                end
+            end
+
+            ret
+        end
+
         def nodes_ids
             @body['nodes'].map {|node| node['deploy_id'] }
         end
 
         def elasticity_policies
             @body['elasticity_policies']
+        end
+
+        def update_elasticity_policies(new_policies)
+            @body['elasticity_policies'] = new_policies
+        end
+
+        def scheduled_policies
+            @body['scheduled_policies']
+        end
+
+        def update_scheduled_policies(new_policies)
+            @body['scheduled_policies'] = new_policies
         end
 
         # Sets a new state
@@ -708,7 +744,7 @@ module OpenNebula
         #   according to the elasticity and scheduled policies
         # @return [Array<Integer>] positive, 0, or negative number of nodes to
         #   adjust, plus the cooldown period duration
-        def scale?
+        def scale?(client)
             elasticity_pol = @body['elasticity_policies']
             scheduled_pol  = @body['scheduled_policies']
 
@@ -722,7 +758,7 @@ module OpenNebula
             end
 
             elasticity_pol.each do |policy|
-                diff, cooldown_duration = scale_attributes?(policy)
+                diff, cooldown_duration = scale_attributes?(policy, client)
 
                 next if diff == 0
 
@@ -904,7 +940,7 @@ module OpenNebula
         # @param [Hash] A policy based on attributes
         # @return [Array<Integer>] positive, 0, or negative number of nodes to
         #   adjust, plus the cooldown period duration
-        def scale_attributes?(elasticity_pol)
+        def scale_attributes?(elasticity_pol, client)
             now = Time.now.to_i
 
             # TODO: enforce true_up_evals type in ServiceTemplate::ROLE_SCHEMA ?
@@ -926,7 +962,7 @@ module OpenNebula
             new_cardinality = cardinality
             new_evals       = 0
 
-            exp_value, exp_st = scale_rule(expression)
+            exp_value, exp_st = scale_rule(expression, client)
 
             if exp_value
                 new_evals = true_evals + 1
@@ -949,7 +985,7 @@ module OpenNebula
 
         # Returns true if the scalability rule is triggered
         # @return true if the scalability rule is triggered
-        def scale_rule(elas_expr)
+        def scale_rule(elas_expr, client)
             parser = ElasticityGrammarParser.new
 
             if elas_expr.nil? || elas_expr.empty?
@@ -963,7 +999,7 @@ module OpenNebula
                         "Parse error. '#{elas_expr}': #{parser.failure_reason}"]
             end
 
-            val, st = treetop.result(self)
+            val, st = treetop.result(self, client)
 
             [val, st]
         end

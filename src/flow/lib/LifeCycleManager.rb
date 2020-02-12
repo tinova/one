@@ -91,7 +91,10 @@ class ServiceLCM
         Thread.new { catch_up(client) }
 
         Thread.new do
-            auto_scaler = ServiceAutoScaler.new(@srv_pool, em_conf)
+            auto_scaler = ServiceAutoScaler.new(@srv_pool,
+                                                client,
+                                                @cloud_auth,
+                                                self)
             auto_scaler.start
         end
     end
@@ -381,6 +384,36 @@ class ServiceLCM
                     'Service cannot be recovered in state: ' \
                     "#{service.state_str}"
                 )
+            end
+
+            service.update
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
+    end
+
+    # Update role elasticity/schedule policies
+    #
+    # @param client      [OpenNebula::Client] Client executing action
+    # @param service_id  [Integer]            Service ID
+    # @param role_name   [String]             Role to update
+    # @param policies    [Hash]               New policies values
+    #
+    # @return [OpenNebula::Error] Error if any
+    def update_role_policies(client, service_id, role_name, policies)
+        rc = @srv_pool.get(service_id, client) do |service|
+            role                = service.roles[role_name]
+            elasticity_policies = policies['elasticity_policies']
+            scheduled_policies  = policies['scheduled_policies']
+
+            if elasticity_policies && !elasticity_policies.empty?
+                role.update_elasticity_policies(elasticity_policies)
+            end
+
+            if scheduled_policies && !scheduled_policies.empty?
+                role.update_scheduled_policies(scheduled_policies)
             end
 
             service.update

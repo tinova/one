@@ -20,14 +20,11 @@ class ServiceAutoScaler
 
     LOG_COMP = 'AE'
 
-    def initialize(service_pool, options, interval = 1)
-        @conf       = options
-
-        @lcm        = options[:lcm]
+    def initialize(service_pool, client, cloud_auth, lcm, interval = 30)
+        @lcm        = lcm
         @interval   = interval
         @srv_pool   = service_pool
-
-        @cloud_auth = @conf[:cloud_auth]
+        @cloud_auth = cloud_auth
         @client     = client
     end
 
@@ -38,11 +35,11 @@ class ServiceAutoScaler
             @srv_pool.each do |service|
                 service.info
 
-                Log.info LOG_COMP,
-                         'Checking elasticity policies for ' \
-                         "service: #{service['/DOCUMENT/ID']}"
+                next if service.state == Service::STATE['DONE']
 
-                # TODO skip done
+                Log.info LOG_COMP,
+                         'Checking policies for ' \
+                         "service: #{service['/DOCUMENT/ID']}"
 
                 apply_scaling_policies(service)
             end
@@ -66,22 +63,29 @@ class ServiceAutoScaler
     # to SCALING. Only one role is set to scale.
     # @param  [Service] service
     def apply_scaling_policies(service)
-        Log.debug LOG_COMP, 'Apply scaling policies', service.id
-
         service.roles.each do |name, role|
-            diff, cooldown_duration = role.scale?
+            # TODO: Make cooldown configurable
+            diff, _cooldown_duration = role.scale?(client)
 
-            if diff != 0
-                Log.debug LOG_COMP,
-                          "Role #{name} needs to scale #{diff} nodes",
-                          service.id
+            policies = {}
+            policies['elasticity_policies'] = role.elasticity_policies
+            policies['scheduled_policies']  = role.scheduled_policies
 
-                @lcm.scale_action(client,
-                                  service.id,
-                                  name,
-                                  role.cardinalit + diff,
-                                  false)
-            end
+            @lcm.update_role_policies(client, service.id, name, policies)
+
+            next unless diff != 0
+
+            Log.info LOG_COMP,
+                     "Applying scalinig policies to service: #{service.id}"
+
+            Log.info LOG_COMP,
+                     "Role #{name} needs to scale #{diff} nodes", service.id
+
+            @lcm.scale_action(client,
+                              service.id,
+                              name,
+                              role.cardinality + diff,
+                              false)
         end
     end
 
