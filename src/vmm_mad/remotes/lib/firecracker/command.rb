@@ -43,6 +43,10 @@ module Command
         execute(cmd, lock) unless running?(cmd.split[0])
     end
 
+    def self.execute_rc(cmd, lock = nil)
+        execute(cmd, lock)[0].zero?
+    end
+
     # Return true if command is running
     def self.running?(command)
         !`ps  --noheaders -C #{command}`.empty?
