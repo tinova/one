@@ -22,6 +22,7 @@ define(function(require) {
   var TemplateUtils = require('utils/template-utils');
   var LabelsUtils = require('utils/labels/utils');
   var Status = require('utils/status');
+  var mapips = require('./mapips');
 
   var RESOURCE = "VM";
   var XML_ROOT = "VM";
@@ -96,19 +97,41 @@ define(function(require) {
   }
 
   function renderMapIps(element){
-    //aca la validacion si posee context, nics y la configuracion
+    var render = '';
     if(
       element && 
-      element.STIME && 
-      element.USER_TEMPLATE && 
-      element.USER_TEMPLATE.SCHED_ACTION && 
+      element.TEMPLATE && 
+      element.TEMPLATE.CONTEXT && 
+      element.TEMPLATE.CONTEXT.MAP_PRIVATE && 
+      element.TEMPLATE.CONTEXT.MAP_PUBLIC && 
+      element.TEMPLATE.NIC &&
       config && 
       config.system_config &&
-      config.system_config.leases
+      config.system_config.extended_vm_info && 
+      config.system_config.mapped_ips
     ){
-
+      var nics = element.TEMPLATE.NIC;
+      var pblc = element.TEMPLATE.CONTEXT.MAP_PUBLIC;
+      var prvt = element.TEMPLATE.CONTEXT.MAP_PRIVATE;
+      var renderTitle = true;
+      if (!$.isArray(nics)){
+        nics = [nics];
+      }
+      var mapp = new mapips(pblc, prvt);
+      nics.forEach(function(nic){
+        if(nic && nic.IP){
+          var foundip = mapp.renderPublicIp(nic.IP);
+          if (foundip){
+            if(renderTitle){
+              render = '<br><b>Mapped networks:</b>';
+              renderTitle = false;
+            }
+            render += '<br>'+foundip+"("+nic.IP+")";
+          }
+        }
+      });
     }
-    console.log("PASO", element, config);
+    return render;
   }
 
   function leasesClock(element){

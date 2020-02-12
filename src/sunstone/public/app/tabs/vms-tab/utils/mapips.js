@@ -19,11 +19,11 @@ define(function(require) {
   // var publicIp = "10.10.0.0/24";
   // var privateIp = "192.168.10.0/24";
   // var x = "192.168.10.1";
-  class Mapips {
+  class mapips {
     constructor(pblc, prvt) {
       this.pblc = pblc || "";
       this.prvt = prvt || "";
-      this.rtn = "-";
+      this.rtn = "";
     }
 
     intToip(ipInt) {
@@ -72,13 +72,14 @@ define(function(require) {
 
     renderPublicIp(nic) {
       var ipnic = nic || "";
+      var rtn = '';
       if (ip.cidrSubnet(this.prvt).contains(ipnic)) {
-        this.rtn = this.mapIPprivate();
+        rtn = this.mapIPprivate();
       }
-      return this.rtn;
+      return rtn;
     }
   }
   // var mapp = new Mapips(publicIp, privateIp);
   // console.log("->", mapp.renderPublicIp(x));
-  return Mapips;
+  return mapips;
 });
