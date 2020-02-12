@@ -121,10 +121,11 @@ module OpenNebula
         LOG_COMP = 'ROL'
 
         def initialize(body, service)
-            @body    = body
-            @service = service
+            @body     = body
+            @service  = service
 
-            @body['nodes'] ||= []
+            @body['cooldown'] = @@default_cooldown if @body['cooldown'].nil?
+            @body['nodes']    ||= []
         end
 
         def name
@@ -277,6 +278,14 @@ module OpenNebula
 
         def update_scheduled_policies(new_policies)
             @body['scheduled_policies'] = new_policies
+        end
+
+        def cooldown
+            @body['cooldown']
+        end
+
+        def update_cooldown(new_cooldown)
+            @body['cooldown'] = new_cooldown
         end
 
         # Sets a new state

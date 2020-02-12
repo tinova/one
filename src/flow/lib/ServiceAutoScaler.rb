@@ -64,14 +64,17 @@ class ServiceAutoScaler
     # @param  [Service] service
     def apply_scaling_policies(service)
         service.roles.each do |name, role|
-            # TODO: Make cooldown configurable
-            diff, _cooldown_duration = role.scale?(client)
+            diff, cooldown_duration = role.scale?(client)
 
             policies = {}
             policies['elasticity_policies'] = role.elasticity_policies
             policies['scheduled_policies']  = role.scheduled_policies
 
-            @lcm.update_role_policies(client, service.id, name, policies)
+            @lcm.update_role_policies(client,
+                                      service.id,
+                                      name,
+                                      policies,
+                                      cooldown_duration)
 
             next unless diff != 0
 

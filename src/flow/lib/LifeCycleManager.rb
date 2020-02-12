@@ -400,9 +400,10 @@ class ServiceLCM
     # @param service_id  [Integer]            Service ID
     # @param role_name   [String]             Role to update
     # @param policies    [Hash]               New policies values
+    # @param cooldown    [Integer]            New cooldown time
     #
     # @return [OpenNebula::Error] Error if any
-    def update_role_policies(client, service_id, role_name, policies)
+    def update_role_policies(client, service_id, role_name, policies, cooldown)
         rc = @srv_pool.get(service_id, client) do |service|
             role                = service.roles[role_name]
             elasticity_policies = policies['elasticity_policies']
@@ -415,6 +416,8 @@ class ServiceLCM
             if scheduled_policies && !scheduled_policies.empty?
                 role.update_scheduled_policies(scheduled_policies)
             end
+
+            role.update_cooldown(cooldown) if cooldown > 0
 
             service.update
         end
@@ -528,14 +531,16 @@ class ServiceLCM
         rc = @srv_pool.get(service_id, client) do |service|
             service.set_state(Service::STATE['COOLDOWN'])
             service.roles[role_name].set_state(Role::STATE['COOLDOWN'])
+
             @event_manager.trigger_action(:wait_cooldown,
                                           service.id,
                                           client,
                                           service.id,
                                           role_name,
-                                          10) # TODO, config time
+                                          service.roles[role_name].cooldown)
 
             service.roles[role_name].clean_scale_way
+
             service.update
         end
 
@@ -557,7 +562,7 @@ class ServiceLCM
                                           client,
                                           service.id,
                                           role_name,
-                                          10) # TODO, config time
+                                          service.roles[role_name].cooldown)
 
             service.roles[role_name].clean_scale_way
 

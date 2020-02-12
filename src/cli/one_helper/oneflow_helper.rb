@@ -160,6 +160,29 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
         end
     end
 
+    # Get policy adjust information in str format
+    #
+    # @param policy [Hash] Policy information
+    def self.adjust_str(policy)
+        policy['adjust'].to_i >= 0 ? sign = '+' : sign = '-'
+        adjust = policy['adjust'].to_i.abs
+
+        case policy['type']
+        when 'CARDINALITY'
+            "= #{adjust}"
+        when 'PERCENTAGE_CHANGE'
+            st = "#{sign} #{adjust} %"
+
+            if policy['min_adjust_step']
+                st << " (#{policy['min_adjust_step']})"
+            end
+
+            st
+        else
+            "#{sign} #{adjust}"
+        end
+    end
+
     private
 
     # Get nodes pool table
@@ -309,36 +332,16 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
                 print_elasticity_info(role)
             end
 
+            if role['scheduled_policies'] &&
+               !role['scheduled_policies'].empty?
+                print_scheduled_info(role)
+            end
+
+            puts
             CLIHelper.print_header('NODES INFORMATION', false)
 
             format_node_pool.show(role['nodes'])
-
             puts
-        end
-
-        puts
-    end
-
-    # Get policy adjust information in str format
-    #
-    # @param policy [Hash] Policy information
-    def self.adjust_str(policy)
-        policy['adjust'].to_i >= 0 ? sign = '+' : sign = '-'
-        adjust = policy['adjust'].to_i.abs
-
-        case policy['type']
-        when 'CARDINALITY'
-            "= #{adjust}"
-        when 'PERCENTAGE_CHANGE'
-            st = "#{sign} #{adjust} %"
-
-            if policy['min_adjust_step']
-                st << " (#{policy['min_adjust_step']})"
-            end
-
-            st
-        else
-            "#{sign} #{adjust}"
         end
     end
 
@@ -346,6 +349,9 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
     #
     # @param role [OpenNebula::Role] Role information
     def print_elasticity_info(role)
+        puts
+        CLIHelper.print_header('ROLE ELASTICITY', false)
+
         CLIHelper::ShowTable.new(nil, self) do
             column :ADJUST, '', :left, :size => 12 do |d|
                 OneFlowHelper.adjust_str(d)
@@ -378,6 +384,30 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
 
             default :ADJUST, :EXPRESSION, :EVALS, :PERIOD, :COOL
         end.show([role['elasticity_policies']].flatten, {})
+    end
+
+    # Print role schedule info
+    #
+    # @param role [OpenNebula::Role] Role information
+    def print_scheduled_info(role)
+        puts
+        CLIHelper.print_header('ROLE ELASTICITY SCHEDULE', false)
+
+        CLIHelper::ShowTable.new(nil, self) do
+            column :ADJUST, '', :left, :size => 12 do |d|
+                OneFlowHelper.adjust_str(d)
+            end
+
+            column :TIME, '', :left, :size => 67 do |d|
+                if d['start_time']
+                    Time.parse(d['start_time']).to_s
+                else
+                    d['recurrence']
+                end
+            end
+
+            default :ADJUST, :TIME
+        end.show([role['scheduled_policies']].flatten, {})
     end
 
 end

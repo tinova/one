@@ -104,7 +104,6 @@ class EventManager
             rc = wait(nodes, 'ACTIVE', 'RUNNING')
         end
 
-        # Todo, check if OneGate confirmation is needed (trigger another action)
         if rc[0]
             @lcm.trigger_action(:deploy_cb,
                                 service_id,
@@ -160,7 +159,6 @@ class EventManager
             rc = wait(nodes, 'ACTIVE', 'RUNNING')
         end
 
-        # Todo, check if OneGate confirmation is needed (trigger another action)
         if rc[0]
             @lcm.trigger_action(:scaleup_cb,
                                 service_id,
@@ -181,7 +179,6 @@ class EventManager
 
         rc = wait(nodes, 'DONE', 'LCM_INIT')
 
-        # Todo, check if OneGate confirmation is needed (trigger another action)
         if rc[0]
             @lcm.trigger_action(:scaledown_cb,
                                 service_id,
