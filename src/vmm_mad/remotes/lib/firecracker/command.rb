@@ -43,8 +43,12 @@ module Command
         execute(cmd, lock) unless running?(cmd.split[0])
     end
 
-    def self.execute_rc(cmd, lock = nil)
-        execute(cmd, lock)[0].zero?
+    def self.execute_rc_log(cmd, lock = nil)
+        rc, _stdout, stderr = execute(cmd, lock)
+
+        puts stderr unless rc.zero?
+
+        rc.zero?
     end
 
     # Return true if command is running
@@ -53,7 +57,7 @@ module Command
     end
 
     def self.lock
-        lfd = File.open(LOCK_FILE,"w")
+        lfd = File.open(LOCK_FILE, 'w')
         lfd.flock(File::LOCK_EX)
 
         lfd
