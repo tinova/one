@@ -111,8 +111,8 @@ define(function(require) {
       config.system_config.mapped_ips
     ){
       var nics = element.TEMPLATE.NIC;
-      var pblc = element.TEMPLATE.CONTEXT.MAP_PUBLIC;
-      var prvt = element.TEMPLATE.CONTEXT.MAP_PRIVATE;
+      var pblc = element.TEMPLATE.CONTEXT.MAP_PUBLIC; //"10.0.0.0/24";
+      var prvt = element.TEMPLATE.CONTEXT.MAP_PRIVATE; //"10.0.0.0/24";
       var renderTitle = true;
       if (!$.isArray(nics)){
         nics = [nics];
@@ -123,10 +123,10 @@ define(function(require) {
           var foundip = mapp.renderPublicIp(nic.IP);
           if (foundip){
             if(renderTitle){
-              render = '<br><b>Mapped networks:</b>';
+              render = $('<div/>').append($('<br/>').add($('<b/>').text(Locale.tr('Mapped Networks')))).html();
               renderTitle = false;
             }
-            render += '<br>'+foundip+"("+nic.IP+")";
+            render += $("<div/>").append($("<br/>").add($("<div/>").text(foundip+" ("+nic.IP+")"))).html();
           }
         }
       });
