@@ -15,6 +15,7 @@
 #--------------------------------------------------------------------------- #
 require 'rexml/document'
 require 'yaml'
+require 'command'
 
 # This class reads and holds configuration attributes for the LXD driver
 class FirecrackerConfiguration < Hash
@@ -60,7 +61,7 @@ class OpenNebulaVM
         @xml = XMLElement.new_s(xml)
         @xml = @xml.element('//VM')
 
-        @vm_id    = @xml['//TEMPLATE/VMID']
+        @vm_id    = Integer(@xml['//TEMPLATE/VMID'])
         @vm_name  = @xml['//DEPLOY_ID']
         @vm_name  = "one-#{@vm_id}" if @vm_name.empty?
 
@@ -147,7 +148,7 @@ class OpenNebulaVM
 
     def jailer_params(hash)
         hash['id'] = "one-#{vm_id}"
-        hash['node'] = 0 # TODO, check how use NUMA nodes (@xml.element('//TEMPLATE//NUMA_NODE'))
+        hash['node'] = get_numa_node # TODO, check how use NUMA nodes (@xml.element('//TEMPLATE//NUMA_NODE'))
         hash['exec-file'] = @exec_file
         hash['uid'] = @uid
         hash['gid'] = @gid
@@ -180,7 +181,7 @@ class OpenNebulaVM
     end
 
     #---------------------------------------------------------------------------
-    # Container Device Mapping: Storage
+    # MicroVM Device Mapping: Storage
     #---------------------------------------------------------------------------
 
     # Generate Context information
@@ -221,6 +222,20 @@ class OpenNebulaVM
         datastore = @sysds_path
         datastore = File.readlink(@sysds_path) if File.symlink?(@sysds_path)
         "#{datastore}/#{@vm_id}/disk.#{disk_id}"
+    end
+
+    #---------------------------------------------------------------------------
+    # MicroVM Device Mapping: NUMA
+    #---------------------------------------------------------------------------
+
+    def get_numa_node
+        rc, nodes, = Command.execute('ls /sys/devices/system/node | grep node', false)
+
+        return -1 unless rc.zero?
+
+        nodes = nodes.split('\n')
+
+        Integer(nodes[@vm_id % nodes.size].gsub('node', ''))
     end
 
     #---------------------------------------------------------------------------

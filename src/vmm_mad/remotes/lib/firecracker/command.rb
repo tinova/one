@@ -43,7 +43,7 @@ module Command
         execute(cmd, lock) unless running?(cmd.split[0])
     end
 
-    def self.execute_rc_log(cmd, lock = nil)
+    def self.execute_rc_log(cmd, lock = false)
         rc, _stdout, stderr = execute(cmd, lock)
 
         puts stderr unless rc.zero?

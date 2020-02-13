@@ -109,12 +109,12 @@ class MicroVM
     end
 
     def map_chroot_path
-        rc = Command.execute_rc("mkdir -p #{@rootfs_dir}")
+        rc = Command.execute_rc_log("mkdir -p #{@rootfs_dir}")
 
         return false unless rc
 
         # TODO, add option for hard links
-        Command.execute_rc("sudo mount -o bind #{@one.sysds_path}/#{@one.vm_id} #{@rootfs_dir}")
+        Command.execute_rc_log("sudo mount -o bind #{@one.sysds_path}/#{@one.vm_id} #{@rootfs_dir}")
     end
 
     def get_pid
@@ -138,27 +138,27 @@ class MicroVM
         context_location = context['context']['source']
 
         # Create temporary directories
-        rc = Command.execute_rc("mkdir #{@map_location}")
-        rc &= rc && Command.execute_rc("mkdir #{@map_location}/context")
-        rc &= rc && Command.execute_rc("mkdir #{@map_location}/fs")
+        rc = Command.execute_rc_log("mkdir #{@map_location}")
+        rc &= rc && Command.execute_rc_log("mkdir #{@map_location}/context")
+        rc &= rc && Command.execute_rc_log("mkdir #{@map_location}/fs")
 
         # mount rootfs
-        rc &= rc && Command.execute_rc("sudo mount #{vm_location}/disk.#{@one.rootfs_id} " \
+        rc &= rc && Command.execute_rc_log("sudo mount #{vm_location}/disk.#{@one.rootfs_id} " \
                         "#{@one.sysds_path}/#{@one.vm_id}/map_context/fs")
         # mount context disk
-        rc &= rc && Command.execute_rc("sudo mount #{context_location} #{@map_location}/context")
+        rc &= rc && Command.execute_rc_log("sudo mount #{context_location} #{@map_location}/context")
 
         # create "/context" inside rootfs ()
         if !File.directory?("#{@map_location}/fs/context")
-            rc &= rc && Command.execute_rc("sudo mkdir #{@map_location}/fs/context")
+            rc &= rc && Command.execute_rc_log("sudo mkdir #{@map_location}/fs/context")
         end
 
-        rc &= rc && Command.execute_rc("sudo cp #{@map_location}/context/* #{@map_location}/fs/context")
+        rc &= rc && Command.execute_rc_log("sudo cp #{@map_location}/context/* #{@map_location}/fs/context")
 
         # clean temporary directories
-        rc &= rc && Command.execute_rc("sudo umount #{@map_location}/fs")
-        rc &= rc && Command.execute_rc("sudo umount #{@map_location}/context")
-        rc &= rc && Command.execute_rc("rm -rf #{@map_location}")
+        rc &= rc && Command.execute_rc_log("sudo umount #{@map_location}/fs")
+        rc &= rc && Command.execute_rc_log("sudo umount #{@map_location}/context")
+        rc &= rc && Command.execute_rc_log("rm -rf #{@map_location}")
 
         rc
     end
@@ -246,7 +246,7 @@ class MicroVM
 
         return false unless map_context
 
-        Command.execute_rc(cmd)
+        Command.execute_rc_log(cmd)
     end
 
     # Poweroff the microVM by sending CtrlAltSupr signal
@@ -264,21 +264,21 @@ class MicroVM
     def cancel
         pid = get_pid
 
-        Command.execute_rc("kill -9 #{pid}")
+        Command.execute_rc_log("kill -9 #{pid}")
     end
 
     # Clean resources and directories after shuttingdown the microVM
     def clean
         # remove jailer generated files
-        rc = Command.execute_rc("sudo rm -rf #{@rootfs_dir}/dev/")
-        rc &= Command.execute_rc("rm -rf #{@rootfs_dir}/api.socket")
-        rc &= Command.execute_rc("rm -rf #{@rootfs_dir}/firecracker")
+        rc = Command.execute_rc_log("sudo rm -rf #{@rootfs_dir}/dev/")
+        rc &= Command.execute_rc_log("rm -rf #{@rootfs_dir}/api.socket")
+        rc &= Command.execute_rc_log("rm -rf #{@rootfs_dir}/firecracker")
 
         # unmount vm directory
         rc &= `sudo umount #{@rootfs_dir}`
 
         # remove chroot directory
-        rc &= Command.execute_rc("rm -rf #{File.expand_path('..', @rootfs_dir)}") if rc
+        rc &= Command.execute_rc_log("rm -rf #{File.expand_path('..', @rootfs_dir)}") if rc
 
         # remove residual cgroups
         rc &= clean_cgroups
@@ -291,13 +291,13 @@ class MicroVM
         cgroup_path = @one.fcrc[:cgroup_location]
 
         wait_cgroup("#{cgroup_path}/cpu/firecracker/#{@one.vm_name}/tasks")
-        rc = Command.execute_rc("sudo rmdir #{cgroup_path}/cpu/firecracker/#{@one.vm_name}")
+        rc = Command.execute_rc_log("sudo rmdir #{cgroup_path}/cpu/firecracker/#{@one.vm_name}")
 
         wait_cgroup("#{cgroup_path}/cpuset/firecracker/#{@one.vm_name}/tasks")
-        rc &= Command.execute_rc("sudo rmdir #{cgroup_path}/cpuset/firecracker/#{@one.vm_name}")
+        rc &= Command.execute_rc_log("sudo rmdir #{cgroup_path}/cpuset/firecracker/#{@one.vm_name}")
 
         wait_cgroup("#{cgroup_path}/pids/firecracker/#{@one.vm_name}/tasks")
-        rc &= Command.execute_rc("sudo rmdir #{cgroup_path}/pids/firecracker/#{@one.vm_name}")
+        rc &= Command.execute_rc_log("sudo rmdir #{cgroup_path}/pids/firecracker/#{@one.vm_name}")
 
         rc
     end
