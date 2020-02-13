@@ -23,7 +23,7 @@ require.config({
     "almond": "../bower_components/almond/almond",
 
     /* IP */
-    "ip": "../bower_components/ip/lib/ip",
+    "ip": "../bower_components/ip/src/ip",
 
     /* BUFFER */
     "buffer": "../bower_components/buffer/buffer.min",

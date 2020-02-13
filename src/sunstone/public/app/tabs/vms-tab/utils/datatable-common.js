@@ -111,8 +111,8 @@ define(function(require) {
       config.system_config.mapped_ips
     ){
       var nics = element.TEMPLATE.NIC;
-      var pblc = element.TEMPLATE.CONTEXT.MAP_PUBLIC; //"10.0.0.0/24";
-      var prvt = element.TEMPLATE.CONTEXT.MAP_PRIVATE; //"10.0.0.0/24";
+      var pblc = element.TEMPLATE.CONTEXT.MAP_PUBLIC;
+      var prvt = element.TEMPLATE.CONTEXT.MAP_PRIVATE;
       var renderTitle = true;
       if (!$.isArray(nics)){
         nics = [nics];
