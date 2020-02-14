@@ -264,9 +264,16 @@ define(function(require) {
       template_json.DOCUMENT.TEMPLATE.BODY.networks
     ){
       opts.networks = template_json.DOCUMENT.TEMPLATE.BODY.networks;
+    }
+    if(
+      template_json && 
+      template_json.DOCUMENT && 
+      template_json.DOCUMENT.TEMPLATE && 
+      template_json.DOCUMENT.TEMPLATE.BODY && 
+      template_json.DOCUMENT.TEMPLATE.BODY.custom_attrs
+    ){
       opts.customs = template_json.DOCUMENT.TEMPLATE.BODY.custom_attrs;
     }
-
     return _generateInstantiateUserInputs(opts);
   }
 
@@ -279,8 +286,8 @@ define(function(require) {
   // returns true if at least one input was inserted
   function _generateInstantiateUserInputs(opts) {
     var div = opts.div;
-    var networks = opts && opts.networks? opts.networks : null;
-    var customs = opts && opts.customs? opts.customs : null;
+    var networks = opts && opts.networks ? opts.networks : null;
+    var customs = opts && opts.customs ? opts.customs : null;
     var check = {networks:false, customs:false};
 
     var defaults = opts.defaults;
