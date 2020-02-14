@@ -274,7 +274,6 @@ define(function(require) {
     ){
       opts.customs = template_json.DOCUMENT.TEMPLATE.BODY.custom_attrs;
     }
-    debugger
     return _generateInstantiateUserInputs(opts);
   }
 
