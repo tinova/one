@@ -71,14 +71,14 @@ rescue StandardError => e
     exit 1
 end
 
-conf[:debug_level]      ||= 2
-conf[:lcm_interval]     ||= 30
-conf[:default_cooldown] ||= 300
-conf[:shutdown_action]  ||= 'terminate'
-conf[:action_number]    ||= 1
-conf[:action_period]    ||= 60
-conf[:vm_name_template] ||= DEFAULT_VM_NAME_TEMPLATE
-conf[:auth]             = 'opennebula'
+conf[:debug_level]         ||= 2
+conf[:autoscaler_interval] ||= 90
+conf[:default_cooldown]    ||= 300
+conf[:shutdown_action]     ||= 'terminate'
+conf[:action_number]       ||= 1
+conf[:action_period]       ||= 60
+conf[:vm_name_template]    ||= DEFAULT_VM_NAME_TEMPLATE
+conf[:auth]                = 'opennebula'
 
 set :bind, conf[:host]
 set :port, conf[:port]

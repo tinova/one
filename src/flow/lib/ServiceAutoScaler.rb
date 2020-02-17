@@ -20,21 +20,29 @@ class ServiceAutoScaler
 
     LOG_COMP = 'AE'
 
-    def initialize(service_pool, client, cloud_auth, lcm, interval = 30)
+    # Class constructor
+    #
+    # @param service_pool [OpenNebula::ServicePool] Service pool
+    # @param clien        [OpenNebula::Client]      OpenNebula Client
+    # @param cloud_auth   [OpenNebula::CloudAuth]   Cloud auth to get clients
+    # @param lcm          [LifeCycleManager]        Lcm for flows
+    def initialize(service_pool, client, cloud_auth, lcm)
         @lcm        = lcm
-        @interval   = interval
+        @interval   = cloud_auth.conf[:autoscaler_interval]
         @srv_pool   = service_pool
         @vm_pool    = VirtualMachinePool.new(cloud_auth.client)
         @cloud_auth = cloud_auth
         @client     = client
     end
 
+    # Start auto scaler loop
     def start
         loop do
             @srv_pool.info
             @vm_pool.info_all_extended
 
             @srv_pool.each do |service|
+                # fill service roles information
                 service.info_roles
 
                 next if service.state == Service::STATE['DONE']
@@ -63,7 +71,8 @@ class ServiceAutoScaler
 
     # If a role needs to scale, its cardinality is updated, and its state is set
     # to SCALING. Only one role is set to scale.
-    # @param  [Service] service
+    #
+    # @param  [OpenNebula::Service] service
     def apply_scaling_policies(service)
         service.roles.each do |name, role|
             diff, cooldown_duration = role.scale?(@vm_pool)
