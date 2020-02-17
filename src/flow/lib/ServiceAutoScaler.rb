@@ -24,6 +24,7 @@ class ServiceAutoScaler
         @lcm        = lcm
         @interval   = interval
         @srv_pool   = service_pool
+        @vm_pool    = VirtualMachinePool.new(cloud_auth.client)
         @cloud_auth = cloud_auth
         @client     = client
     end
@@ -31,15 +32,16 @@ class ServiceAutoScaler
     def start
         loop do
             @srv_pool.info
+            @vm_pool.info_all_extended
 
             @srv_pool.each do |service|
-                service.info
+                service.info_roles
 
                 next if service.state == Service::STATE['DONE']
 
                 Log.info LOG_COMP,
                          'Checking policies for ' \
-                         "service: #{service['/DOCUMENT/ID']}"
+                         "service: #{service.id}"
 
                 apply_scaling_policies(service)
             end
@@ -64,7 +66,7 @@ class ServiceAutoScaler
     # @param  [Service] service
     def apply_scaling_policies(service)
         service.roles.each do |name, role|
-            diff, cooldown_duration = role.scale?(client)
+            diff, cooldown_duration = role.scale?(@vm_pool)
 
             policies = {}
             policies['elasticity_policies'] = role.elasticity_policies

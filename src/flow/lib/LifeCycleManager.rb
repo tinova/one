@@ -417,7 +417,7 @@ class ServiceLCM
                 role.update_scheduled_policies(scheduled_policies)
             end
 
-            role.update_cooldown(cooldown) if cooldown > 0
+            role.update_cooldown(cooldown)
 
             service.update
         end

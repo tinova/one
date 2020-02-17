@@ -39,8 +39,8 @@ module ElasticityGrammar
   end
 
   module Expression1
-    def result(role, client)
-        return exp.result(role, client)
+    def result(role, vm_pool)
+        return exp.result(role, vm_pool)
     end
   end
 
@@ -117,9 +117,9 @@ module ElasticityGrammar
   end
 
   module BooleanExp1
-    def result(role, client)
-        l_val, l_st = left.result(role, client)
-        r_val, r_st = right.result(role, client)
+    def result(role, vm_pool)
+        l_val, l_st = left.result(role, vm_pool)
+        r_val, r_st = right.result(role, vm_pool)
 
         st = "#{l_st} #{op.text_value} #{r_st}"
         val = l_val && r_val
@@ -151,9 +151,9 @@ module ElasticityGrammar
   end
 
   module BooleanExp3
-    def result(role, client)
-        l_val, l_st = left.result(role, client)
-        r_val, r_st = right.result(role, client)
+    def result(role, vm_pool)
+        l_val, l_st = left.result(role, vm_pool)
+        r_val, r_st = right.result(role, vm_pool)
 
         st = "#{l_st} #{op.text_value} #{r_st}"
         val = l_val || r_val
@@ -321,9 +321,9 @@ module ElasticityGrammar
   end
 
   module LogicCond1
-    def result(role, client)
-        l_val, l_st = left.result(role, client)
-        r_val, r_st = right.result(role, client)
+    def result(role, vm_pool)
+        l_val, l_st = left.result(role, vm_pool)
+        r_val, r_st = right.result(role, vm_pool)
 
         st = "#{l_st} #{comp_op.text_value} #{r_st}"
 
@@ -351,8 +351,8 @@ module ElasticityGrammar
   end
 
   module LogicCond3
-    def result(role, client)
-        e_val, e_st = expression.result(role, client)
+    def result(role, vm_pool)
+        e_val, e_st = expression.result(role, vm_pool)
 
         val = !e_val
         st = "!#{e_st}"
@@ -377,8 +377,8 @@ module ElasticityGrammar
   end
 
   module LogicCond5
-    def result(role, client)
-        e_val, e_st = expression.result(role, client)
+    def result(role, vm_pool)
+        e_val, e_st = expression.result(role, vm_pool)
 
         st = "(#{e_st})"
 
@@ -736,7 +736,7 @@ module ElasticityGrammar
   end
 
   module Number1
-    def result(role, _client = nil)
+    def result(role, _vm_pool = nil)
         val = text_value.to_f
         st = val.to_s
 
@@ -748,7 +748,7 @@ module ElasticityGrammar
   end
 
   module Number3
-    def result(role, client = nil)
+    def result(role, _vm_pool = nil)
         val = text_value.to_i
         st = val.to_s
 
@@ -923,8 +923,8 @@ module ElasticityGrammar
 
   module Variable3
 
-    def result(role, client)
-        nodes = role.info_nodes(client)
+    def result(role, vm_pool)
+        nodes = role.info_nodes(vm_pool)
         total = 0
         n_nodes = 0
         att = text_value.upcase

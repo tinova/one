@@ -297,6 +297,24 @@ module OpenNebula
             nil
         end
 
+        # Retrieves the information of the Service and all its Nodes.
+        #
+        # @return [nil, OpenNebula::Error] nil in case of success, Error
+        #   otherwise
+        def info_roles
+            @roles = {}
+
+            if @body['roles']
+                @body['roles'].each do |elem|
+                    elem['state'] ||= Role::STATE['PENDING']
+                    role = Role.new(elem, self)
+                    @roles[role.name] = role
+                end
+            end
+
+            nil
+        end
+
         # Add an info message in the service information that will be stored
         #   in OpenNebula
         # @param [String] message
