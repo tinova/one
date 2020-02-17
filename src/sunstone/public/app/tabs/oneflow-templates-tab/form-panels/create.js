@@ -218,10 +218,13 @@ define(function(require) {
 
     // get values for custom attributes
     $("."+CustomClassCustomAttrs+" tbody.custom_tags > tr").each(function(){
-      var attr_name = $(".custom_tag_key", $(this)).val();
+      var row = $(this);
+      var attr_name = $(".custom_tag_key", row).val();
       if (attr_name) {
-        var attr_desc = $(".custom_tag_value", $(this)).val() || '';
-        custom_attrs[attr_name] = "M|" + attr_desc;
+        var attr_type = $(".custom_tag_mandatory", row).val()? $(".custom_tag_mandatory", row).val() : 'M';
+        var attr_desc = $(".custom_tag_value", row).val()? "|"+$(".custom_tag_value", row).val() : '';
+        var attr_default = $(".custom_tag_default", row).val()? "|"+$(".custom_tag_default", row).val() : '';
+        custom_attrs[attr_name] = attr_type + attr_desc + attr_default;
       }
     });
 
@@ -340,7 +343,8 @@ define(function(require) {
         var attrs = {
           "name": key,
           "mandatory": parts[0],
-          "description": parts[1]
+          "description": parts[1],
+          'default': parts[2]
         };
         var tr = $("."+CustomClassCustomAttrs+" tbody.custom_tags > tr", context).last();
         if($(".custom_tag_key", tr).val()){
@@ -348,7 +352,14 @@ define(function(require) {
           tr = $("."+CustomClassCustomAttrs+" tbody.custom_tags > tr", context).last();
         }
         $(".custom_tag_key", tr).val(attrs.name);
+
+        if(attrs.mandatory){
+          var select = $(".custom_tag_mandatory", tr);
+          select.find("option").removeAttr("selected");
+          var selected = select.find("option[value="+attrs.mandatory+"]").attr("selected","selected");
+        }
         $(".custom_tag_value", tr).val(attrs.description);
+        $(".custom_tag_default", tr).val(attrs.default);
       });
     }
 

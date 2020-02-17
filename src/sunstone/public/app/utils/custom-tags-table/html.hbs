@@ -20,7 +20,10 @@
       <thead>
         <tr>
           <th>{{#if titleKey }}{{titleKey}}{{else}}{{tr "Key"}}{{/if}}</th>
+          {{#if titleMandatory }}<th>{{titleMandatory}}</th>{{/if}}
           <th>{{#if titleValue }}{{titleValue}}{{else}}{{tr "Value"}}{{/if}}</th>
+          {{#if titleDesc }}<th>{{titleDesc}}</th>{{/if}}
+          {{#if titleDefault }}<th>{{titleDefault}}</th>{{/if}}
           <th></th>
         </tr>
       </thead>
@@ -28,7 +31,7 @@
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="3">
+          <td colspan="5">
             <a type="button" class="add_custom_tag {{classButton}} button small small-12 secondary radius">
               <i class="fas fa-lg fa-plus-circle"></i>
             </a>
