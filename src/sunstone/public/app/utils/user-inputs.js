@@ -731,8 +731,9 @@ define(function(require) {
    */
   function _attributeInput(attr) {
     var input;
+    var defaultInput = attr && attr.type ? attr.type : "";
     var required = (attr.mandatory ? "required" : "");
-    var wizard_field = "wizard_field=\"" + TemplateUtils.htmlEncode(attr.name) + "\"";
+    var wizard_field = "wizard_field='" + TemplateUtils.htmlEncode(attr.name) + "'";
     if (attr.wizard_field_disabled == true){
       wizard_field = "";
     }
@@ -743,33 +744,33 @@ define(function(require) {
     switch (attr.type) {
       case "text64":
         try {
-          input = "<textarea type=\"text\" rows=\"1\" wizard_field_64=\"true\" "+wizard_field+" "+required+">"+TemplateUtils.htmlEncode(atob(value))+"</textarea>";
+          input = "<textarea type='text' rows='1' wizard_field_64='true' "+wizard_field+" "+required+">"+TemplateUtils.htmlEncode(atob(value))+"</textarea>";
         } catch(e){
           console.error(e.message);
           input = "<p>"+e.message+"</p>";
         }
         break;
       case "password":
-        input = "<br><input type=\"password\" value=\""+value+"\" "+wizard_field+" "+required+"/>";
+        input = "<br><input type='password' value='"+value+"' "+wizard_field+" "+required+"/>";
         break;
       case "boolean":
         var id = UniqueId.id();
         if(value == "YES"){
-          input = "<br>" + Locale.tr("YES ") + "<input style=\"margin-right: 20px\" checked type=\"radio\" name=\"bool_" +id + "\" value=\"YES\"" + wizard_field + " " + required + "/>";
-          input += Locale.tr("NO ") + "<input type=\"radio\" name=\"bool_" + id + "\" value=\"NO\"" + wizard_field + " " + required + "/>";
+          input = "<br>" + Locale.tr("YES ") + "<input style='margin-right: 20px' checked type='radio' name='bool_" +id + "' value='YES'" + wizard_field + " " + required + "/>";
+          input += Locale.tr("NO ") + "<input type='radio' name='bool_" + id + "\" value='NO'" + wizard_field + " " + required + "/>";
         } else if(value == "NO"){
-          input = "<br>" + Locale.tr("YES ") + "<input style=\"margin-right: 20px\" type=\"radio\" name=\"bool_" + id + "\" value=\"YES\"" + wizard_field + " " + required + "/>";
-          input += Locale.tr("NO ") + "<input checked type=\"radio\" name=\"bool_" + id + "\" value=\"NO\"" + wizard_field + " " + required + "/>"
+          input = "<br>" + Locale.tr("YES ") + "<input style='margin-right: 20px' type='radio' name='bool_" + id + "' value='YES'" + wizard_field + " " + required + "/>";
+          input += Locale.tr("NO ") + "<input checked type='radio' name='bool_" + id + "' value='NO'" + wizard_field + " " + required + "/>"
         } else {
-          input = "<br>" + Locale.tr("YES ") + "<input style=\"margin-right: 20px\" type=\"radio\" name=\"bool_" + id + "\" value=\"YES\"" + wizard_field + " " + required + "/>";
-          input += Locale.tr("NO ") + "<input type=\"radio\" name=\"bool_" + id + "\" value=\"NO\"" + wizard_field + " " + required + "/>";
+          input = "<br>" + Locale.tr("YES ") + "<input style='margin-right: 20px' type='radio' name='bool_" + id + "' value='YES'" + wizard_field + " " + required + "/>";
+          input += Locale.tr("NO ") + "<input type='radio' name='bool_" + id + "' value='NO'" + wizard_field + " " + required + "/>";
         }
         break;
       case "number":
       case "number-float":
-        var min = attr.min != undefined ? "min=\""+attr.min+"\"" : "";
-        var max = attr.max != undefined ? "max=\""+attr.max+"\"" : "";
-        input = "<input type=\"number\" step=\""+attr.step+"\" "+min+" "+max+" value=\""+value+"\" "+wizard_field+" "+required+"/>";
+        var min = attr.min != undefined ? "min='"+attr.min+"'" : "";
+        var max = attr.max != undefined ? "max='"+attr.max+"'" : "";
+        input = "<input type='number' step='"+attr.step+"' "+min+" "+max+" value='"+value+"' "+wizard_field+" "+required+"/>";
         break;
       case "range":
       case "range-float":
@@ -782,24 +783,24 @@ define(function(require) {
         input = "<select "+wizard_field+" "+required+">";
         $.each(attr.options, function(){
           var selected = (attr.initial == this);
-          input +=  "<option value=\""+this+"\" "+(selected? "selected" : "")+">"+this+"</option>";
+          input +=  "<option value='"+this+"' "+(selected? "selected" : "")+">"+this+"</option>";
         });
         input += "</select>";
       break;
       case "list-multiple":
-        input = "<select multiple=\"multiple\" "+wizard_field+" "+required+">";
+        input = "<select multiple='multiple' "+wizard_field+" "+required+">";
         $.each(attr.options, function(key, value){
           var defaultR = attr.initial.split(",");
           var selected = (defaultR.includes(value));
-          input +=  "<option value=\""+value+"\" "+(selected? "selected" : "")+">"+value+"</option>";
+          input +=  "<option value='"+value+"' "+(selected? "selected" : "")+">"+value+"</option>";
         });
         input += "</select>";
       break;
       case "fixed":
-        input = "<input type=\"text\" value=\""+value+"\" "+wizard_field+" "+required+" disabled/>";
+        input = "<input type='text' value='"+value+"' "+wizard_field+" "+required+" disabled/>";
       break;
       default:
-          input = "<textarea type=\"text\" rows=\"1\" "+wizard_field+" "+required+">"+TemplateUtils.htmlEncode(value)+"</textarea>";
+          input = "<textarea type='text' rows='1' default='"+defaultInput+"' "+wizard_field+" "+required+">"+TemplateUtils.htmlEncode(value)+"</textarea>";
       break;
     }
 
