@@ -516,10 +516,23 @@ post '/service_template/:id/action' do
             return internal_error('Wrong networks_values format', VALIDATION_EC)
         end
 
+        if networks && !networks_values
+            return internal_error('Missing networks_values', VALIDATION_EC)
+        end
+
         if networks && networks_values && !(networks.keys -
             networks_values.collect {|i| i.keys }.flatten).empty?
             return internal_error('Every network key must have its value ' \
                                   'defined at networks_value', VALIDATION_EC)
+        end
+
+        # remove escapes
+        networks_values.each do |net|
+            net.map do |key, value|
+                value.map do |key1, value1|
+                    value1.gsub!("\\\"", '')
+                end
+            end
         end
 
         # Creates service document
