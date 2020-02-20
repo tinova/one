@@ -233,7 +233,7 @@ class OpenNebulaVM
 
         return -1 unless rc.zero?
 
-        nodes = nodes.split('\n')
+        nodes = nodes.split("\n")
 
         Integer(nodes[@vm_id % nodes.size].gsub('node', ''))
     end
