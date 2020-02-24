@@ -216,13 +216,17 @@ rbd_df_monitor() {
     while IFS= read -r -d '' element; do
         xpath_elements[i++]="$element"
     done < <(echo $monitor_data | $XPATH \
-                "/stats/pools/pool[name = \"${pool_name}\"]/stats/stored" \
                 "/stats/pools/pool[name = \"${pool_name}\"]/stats/quota_bytes" \
-                "/stats/pools/pool[name = \"${pool_name}\"]/stats/max_avail")
+                "/stats/pools/pool[name = \"${pool_name}\"]/stats/max_avail"
+                "/stats/pools/pool[name = \"${pool_name}\"]/stats/bytes_used" \
+                "/stats/pools/pool[name = \"${pool_name}\"]/stats/stored")
 
-    stored="${xpath_elements[j++]:-0}"
     quota_bytes="${xpath_elements[j++]:-0}"
     free="${xpath_elements[j++]:-0}"
+    bytes_used="${xpath_elements[j++]:-0}"
+    stored="${xpath_elements[j++]:-0}"
+
+    [ $stored = "0" ] && stored=$bytes_used
 
     if [ $quota_bytes -ne 0 ]; then
         if [ $quota_bytes -lt $free ]; then
