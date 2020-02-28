@@ -83,7 +83,7 @@ CommandParser::CmdParser.new(ARGV) do
 
     set :format,
         :vm_action,
-        'Actions supported: #{Role::SCHEDULE_ACTIONS.join(', ')}' do |arg|
+        "Actions supported: #{Role::SCHEDULE_ACTIONS.join(', ')}" do |arg|
         if Role::SCHEDULE_ACTIONS.include?(arg)
             [0, arg]
         else
@@ -137,6 +137,24 @@ CommandParser::CmdParser.new(ARGV) do
 
         Service.perform_actions(args[0]) do |service_id|
             client.delete("#{RESOURCE_PATH}/#{service_id}")
+        end
+    end
+
+    ###
+
+    snapshot_create_desc = <<-EOT.unindent
+        Make a system snapshot of the service
+    EOT
+
+    command :'snapshot-create', snapshot_create_desc, :service_id, :name do
+        client = helper.client(options)
+        params = {}
+
+        params['name'] = args[1]
+
+        Service.perform_action(args[0]) do |service_id|
+            client.post("#{RESOURCE_PATH}/#{service_id}/snapshot_create",
+                        JSON.pretty_generate(params))
         end
     end
 

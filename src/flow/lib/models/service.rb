@@ -34,7 +34,9 @@ module OpenNebula
             'FAILED_DEPLOYING'   => 7,
             'SCALING'            => 8,
             'FAILED_SCALING'     => 9,
-            'COOLDOWN'           => 10
+            'COOLDOWN'           => 10,
+            'SNAPSHOT'           => 11,
+            'FAILED_SNAPSHOT'    => 12
         }
 
         STATE_STR = %w[
@@ -49,6 +51,8 @@ module OpenNebula
             SCALING
             FAILED_SCALING
             COOLDOWN
+            SNAPSHOT
+            FAILED_SNAPSHOT
         ]
 
         TRANSIENT_STATES = %w[
@@ -61,6 +65,7 @@ module OpenNebula
             FAILED_DEPLOYING
             FAILED_UNDEPLOYING
             FAILED_SCALING
+            FAILED_SNAPSHOT
         ]
 
         RECOVER_DEPLOY_STATES = %w[
@@ -77,6 +82,11 @@ module OpenNebula
         RECOVER_SCALE_STATES = %w[
             FAILED_SCALING
             SCALING
+        ]
+
+        RECOVER_SNAPSHOT_STATES = %w[
+            FAILED_SNAPSHOT
+            SNAPSHOT
         ]
 
         LOG_COMP = 'SER'
@@ -122,6 +132,12 @@ module OpenNebula
             end
         end
 
+        # Return true if the service can be snapshoted
+        # @return true if the service can be snapshoted, false otherwise
+        def can_snapshot?
+            state == Service::STATE['RUNNING']
+        end
+
         def can_recover_deploy?
             RECOVER_DEPLOY_STATES.include? STATE_STR[state]
         end
@@ -138,6 +154,91 @@ module OpenNebula
         # @return [true, false] true if the running_status_vm option is enabled
         def report_ready?
             @body['ready_status_gate']
+        end
+
+        def all_snapshot?(snap_id)
+            snapshot = find_snapshot(snap_id)
+
+            snapshot['left_nodes'].empty?
+        end
+
+        # Creates a system snapshot object
+        #
+        # @param name [String] Snapshot name
+        #
+        # @return [Integer] Snapshot ID
+        def snapshot_create(name)
+            @body['snapshots'] = [] if @body['snapshots'].nil?
+
+            snapshot = {}
+
+            nodes_ids = @roles.map {|_, role| role.nodes_ids }.flatten
+            snap_id   = @body['snapshots'].size
+
+            # add nil snap id
+            nodes = nodes_ids.map {|v| { v => nil } }
+
+            snapshot['name']        = name
+            snapshot['snapshot_id'] = snap_id
+            snapshot['time']        = Time.now.to_i
+            snapshot['nodes_ids']   = nodes
+            snapshot['left_nodes']  = nodes_ids
+
+            @body['snapshots'] << snapshot
+
+            snap_id
+        end
+
+        # Get next node to snapshot
+        #
+        # @param snap_id [String] Snapshot ID
+        def next_snap_node(snap_id)
+            snapshot = find_snapshot(snap_id)
+
+            snapshot['left_nodes'][0]
+        end
+
+        # Get snapshot name
+        #
+        # @param snap_id [String] Snapshot ID
+        # @param node_id [String] VM ID
+        def snap_name(snap_id, node_id)
+            snapshot = find_snapshot(snap_id)
+
+            "#{snapshot['name']}-#{node_id}"
+        end
+
+        # Delete node ID from left nodes to process
+        #
+        # @param snap_id [String] Snapshot ID
+        # @param node_id [String] VM ID
+        def delete_snap_node(snap_id, node_id)
+            snapshot = find_snapshot(snap_id)
+
+            snapshot['left_nodes'].delete(node_id)
+        end
+
+        # Update node information with snapshot ID from OpenNebula
+        #
+        # @param snap_id      [String] Snapshot ID
+        # @param node_id      [String] VM ID
+        # @param node_snap_id [String] ONE snapshot ID
+        def update_snap_node(snap_id, node_id, node_snap_id)
+            snapshot = find_snapshot(snap_id)
+            node     = snapshot['nodes_ids'].find do |v|
+                v.keys[0].to_i == node_id
+            end
+
+            node[node_id.to_s] = node_snap_id
+        end
+
+        # Delete left nodes when snapshot is ready
+        #
+        # @param snap_id [String] Snapshot ID
+        def delete_left_nodes(snap_id)
+            snapshot = find_snapshot(snap_id)
+
+            snapshot.delete('left_nodes')
         end
 
         # Sets a new state
@@ -515,6 +616,10 @@ module OpenNebula
         # Maximum number of log entries per service
         # TODO: Make this value configurable
         MAX_LOG = 50
+
+        def find_snapshot(snap_id)
+            @body['snapshots'].find {|s| s['snapshot_id'] == snap_id }
+        end
 
         def update_body(body)
             @body = body

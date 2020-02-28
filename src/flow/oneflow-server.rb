@@ -367,6 +367,21 @@ post '/service/:id/scale' do
     body
 end
 
+post '/service/:id/snapshot_create' do
+    call_body = JSON.parse(request.body.read)
+
+    rc = lcm.snapshot_create_action(@client,
+                                    params[:id],
+                                    call_body['name'])
+
+    if OpenNebula.is_error?(rc)
+        return internal_error(rc.message, one_error_to_http(rc.errno))
+    end
+
+    status 201
+    body
+end
+
 ##############################################################################
 # Service Template
 ##############################################################################

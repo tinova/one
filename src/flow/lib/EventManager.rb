@@ -31,7 +31,10 @@ class EventManager
         'WAIT_UNDEPLOY'  => :wait_undeploy,
         'WAIT_SCALEUP'   => :wait_scaleup,
         'WAIT_SCALEDOWN' => :wait_scaledown,
-        'WAIT_COOLDOWN'  => :wait_cooldown
+        'WAIT_COOLDOWN'  => :wait_cooldown,
+
+        # SNAPSHOT ACTIONS
+        'SNAPSHOT_CREATE' => :snapshot_create
     }
 
     FAILURE_STATES = %w[
@@ -82,6 +85,10 @@ class EventManager
                             method('wait_scaleup_action'))
         @am.register_action(ACTIONS['WAIT_SCALEDOWN'],
                             method('wait_scaledown_action'))
+
+        # Register snapshot actions
+        @am.register_action(ACTIONS['SNAPSHOT_CREATE'],
+                            method('snapshot_create'))
 
         Thread.new { @am.start_listener }
     end
@@ -211,6 +218,50 @@ class EventManager
                             client,
                             service_id,
                             role_name)
+    end
+
+    # Create a service snapshot
+    #
+    # @param service_id [String] Service ID
+    # @param snap_id    [Stirng] Flow snapshot ID
+    # @param snap_name  [String] Snapshot name
+    # @param node_id    [String] VM ID
+    def snapshot_create(client, service_id, snap_id, snap_name, node_id)
+        Log.info LOG_COMP, "Making snapshot of node #{node_id} in " \
+                           "service #{service_id}."
+
+        # retrieve VM information
+        vm = OpenNebula::VirtualMachine.new_with_id(node_id, client)
+        rc = vm.info
+
+        if OpenNebula.is_error?(rc)
+            @lcm.trigger_action(:snapshot_create_failure_cb,
+                                service_id,
+                                client,
+                                service_id,
+                                rc.message)
+        end
+
+        # execute the snapshot and retrieve the snap ID from OpenNebula
+        rc = vm.snapshot_create(snap_name)
+
+        if OpenNebula.is_error?(rc)
+            @lcm.trigger_action(:snapshot_create_failure_cb,
+                                service_id,
+                                client,
+                                service_id,
+                                rc.message)
+
+        else
+            @lcm.trigger_action(:snapshot_create_cb,
+                                service_id,
+                                client,
+                                service_id,
+                                snap_id,
+                                rc,
+                                node_id)
+
+        end
     end
 
     private

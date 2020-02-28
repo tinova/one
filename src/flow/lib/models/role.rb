@@ -60,7 +60,9 @@ module OpenNebula
             'FAILED_DEPLOYING'   => 7,
             'SCALING'            => 8,
             'FAILED_SCALING'     => 9,
-            'COOLDOWN'           => 10
+            'COOLDOWN'           => 10,
+            'SNAPSHOT'           => 11,
+            'FAILED_SNAPSHOT'    => 12
         }
 
         STATE_STR = %w[
@@ -75,6 +77,8 @@ module OpenNebula
             SCALING
             FAILED_SCALING
             COOLDOWN
+            SNAPSHOT
+            FAILED_SNAPSHOT
         ]
 
         RECOVER_DEPLOY_STATES = %w[
@@ -91,6 +95,11 @@ module OpenNebula
         RECOVER_SCALE_STATES = %w[
             FAILED_SCALING
             SCALING
+        ]
+
+        RECOVER_SNAPSHOT_STATES = %w[
+            FAILED_SNAPSHOT
+            SNAPSHOT
         ]
 
         VM_FAILURE_STATES = %w[

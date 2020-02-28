@@ -43,7 +43,11 @@ class ServiceLCM
         # WD callbacks
         'ERROR_WD_CB'   => :error_wd_cb,
         'DONE_WD_CB'    => :done_wd_cb,
-        'RUNNING_WD_CB' => :running_wd_cb
+        'RUNNING_WD_CB' => :running_wd_cb,
+
+        # Snapshots callbacks
+        'SNAPSHOT_CREATE_CB'         => :snapshot_create_cb,
+        'SNAPSHOT_CREATE_FAILURE_CB' => :snapshot_create_failure_cb
     }
 
     def initialize(client, concurrency, cloud_auth)
@@ -85,6 +89,10 @@ class ServiceLCM
                             method('done_wd_cb'))
         @am.register_action(ACTIONS['RUNNING_WD_CB'],
                             method('running_wd_cb'))
+        @am.register_action(ACTIONS['SNAPSHOT_CREATE_CB'],
+                            method('snapshot_create_cb'))
+        @am.register_action(ACTIONS['SNAPSHOT_CREATE_FAILURE_CB'],
+                            method('snapshot_create_failure_cb'))
 
         Thread.new { @am.start_listener }
 
@@ -357,6 +365,49 @@ class ServiceLCM
             service.update
 
             rc
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
+    end
+
+    # Create a service snapshot
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    # @param name       [String]             Snapshot name
+    def snapshot_create_action(client, service_id, name)
+        rc = @srv_pool.get(service_id, client) do |service|
+            unless service.can_snapshot?
+                break OpenNebula::Error.new(
+                    'Service cannot be snapshoted in state: ' \
+                    "#{service.state_str}"
+                )
+            end
+
+            # stop watchdog
+            @wd.stop(service.id)
+
+            # get snapshot information
+            snap_id   = service.snapshot_create(name)
+            node_id   = service.next_snap_node(snap_id)
+            snap_name = service.snap_name(snap_id, node_id)
+
+            service.set_state(Service::STATE['SNAPSHOT'])
+
+            service.roles.each do |_, role|
+                role.set_state(Role::STATE['SNAPSHOT'])
+            end
+
+            @event_manager.trigger_action(:snapshot_create,
+                                          service.id,
+                                          client,
+                                          service.id,
+                                          snap_id,
+                                          snap_name,
+                                          node_id)
+            service.update
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
@@ -660,7 +711,8 @@ class ServiceLCM
         rc = @srv_pool.get(service_id, client) do |service|
             service.roles[role_name].set_state(Role::STATE['RUNNING'])
 
-            if service.all_roles_running?
+            if service.all_roles_running? &&
+               service.state != Service::STATE['RUNNING']
                 service.set_state(Service::STATE['RUNNING'])
             end
 
@@ -668,6 +720,66 @@ class ServiceLCM
         end
 
         Log.error 'WD', rc.message if OpenNebula.is_error?(rc)
+    end
+
+    ############################################################################
+    # Snapshot Callbacks
+    ############################################################################
+
+    def snapshot_create_cb(client, service_id, snap_id, node_snap_id, node_id)
+        rc = @srv_pool.get(service_id, client) do |service|
+            service.delete_snap_node(snap_id, node_id)
+
+            service.update_snap_node(snap_id, node_id, node_snap_id)
+
+            if service.all_snapshot?(snap_id)
+                # start watchdog again
+                @wd.start(service.id, service.roles)
+
+                service.set_state(Service::STATE['RUNNING'])
+
+                service.roles.each do |_, role|
+                    role.set_state(Role::STATE['RUNNING'])
+                end
+
+                service.delete_left_nodes(snap_id)
+            else
+                # get snapshot information
+                node_id   = service.next_snap_node(snap_id)
+                snap_name = service.snap_name(snap_id, node_id)
+
+                @event_manager.trigger_action(:snapshot_create,
+                                              service.id,
+                                              client,
+                                              service.id,
+                                              snap_id,
+                                              snap_name,
+                                              node_id)
+            end
+
+            service.update
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+    end
+
+    def snapshot_create_failure_cb(client, service_id, error)
+        rc = @srv_pool.get(service_id, client) do |service|
+            Log.error LOG_COMP, "Error making snapshot: #{error}"
+
+            # stop actions for the service if snapshot fails
+            @event_manager.cancel_action(service_id)
+
+            service.set_state(Service::STATE['FAILED_SNAPSHOT'])
+
+            service.roles.each do |_, role|
+                role.set_state(Role::STATE['FAILED_SNAPSHOT'])
+            end
+
+            service.update
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
     end
 
     ############################################################################

@@ -146,6 +146,10 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
 
                 print_roles_info(template['roles'])
 
+                if template['snapshots']
+                    print_snapshots(template['snapshots'])
+                end
+
                 return 0 unless template['log']
 
                 CLIHelper.print_header(str_h1 % 'LOG MESSAGES', false)
@@ -408,6 +412,33 @@ class OneFlowHelper < OpenNebulaHelper::OneHelper
 
             default :ADJUST, :TIME
         end.show([role['scheduled_policies']].flatten, {})
+    end
+
+    # Print flow snapshots information
+    #
+    # @param snapshots [Array] Snapshots information
+    def print_snapshots(snapshots)
+        CLIHelper.print_header('SNAPSHOTS', false)
+
+        CLIHelper::ShowTable.new(nil, self) do
+            column :ID, '', :size => 4 do |d|
+                d['snapshot_id'] unless d.nil?
+            end
+
+            column :TIME, '', :size => 12 do |d|
+                OpenNebulaHelper.time_to_str(d['time'], false) unless d.nil?
+            end
+
+            column :NAME, '', :left, :size => 36 do |d|
+                d['name'] unless d.nil?
+            end
+
+            column :NODES, '', :adjust => true do |d|
+                d['nodes_ids'].map {|v| v.keys[0] }.join(',')
+            end
+        end.show(snapshots, {})
+
+        puts
     end
 
 end
