@@ -24,19 +24,21 @@ module OpenNebula
         DOCUMENT_TYPE = 100
 
         STATE = {
-            'PENDING'            => 0,
-            'DEPLOYING'          => 1,
-            'RUNNING'            => 2,
-            'UNDEPLOYING'        => 3,
-            'WARNING'            => 4,
-            'DONE'               => 5,
-            'FAILED_UNDEPLOYING' => 6,
-            'FAILED_DEPLOYING'   => 7,
-            'SCALING'            => 8,
-            'FAILED_SCALING'     => 9,
-            'COOLDOWN'           => 10,
-            'SNAPSHOT'           => 11,
-            'FAILED_SNAPSHOT'    => 12
+            'PENDING'                => 0,
+            'DEPLOYING'              => 1,
+            'RUNNING'                => 2,
+            'UNDEPLOYING'            => 3,
+            'WARNING'                => 4,
+            'DONE'                   => 5,
+            'FAILED_UNDEPLOYING'     => 6,
+            'FAILED_DEPLOYING'       => 7,
+            'SCALING'                => 8,
+            'FAILED_SCALING'         => 9,
+            'COOLDOWN'               => 10,
+            'SNAPSHOT'               => 11,
+            'FAILED_SNAPSHOT'        => 12,
+            'SNAPSHOT_REVERT'        => 13,
+            'FAILED_SNAPSHOT_REVERT' => 14
         }
 
         STATE_STR = %w[
@@ -53,6 +55,8 @@ module OpenNebula
             COOLDOWN
             SNAPSHOT
             FAILED_SNAPSHOT
+            SNAPSHOT_REVERT
+            FAILED_SNAPSHOT_REVERT
         ]
 
         TRANSIENT_STATES = %w[
@@ -66,6 +70,7 @@ module OpenNebula
             FAILED_UNDEPLOYING
             FAILED_SCALING
             FAILED_SNAPSHOT
+            FAILED_SNAPSHOT_REVERT
         ]
 
         RECOVER_DEPLOY_STATES = %w[
@@ -86,6 +91,7 @@ module OpenNebula
 
         RECOVER_SNAPSHOT_STATES = %w[
             FAILED_SNAPSHOT
+            FAILED_SNAPSHOT_REVERT
             SNAPSHOT
         ]
 
@@ -156,10 +162,18 @@ module OpenNebula
             @body['ready_status_gate']
         end
 
+        # Return true if all nodes have been processed
         def all_snapshot?(snap_id)
             snapshot = find_snapshot(snap_id)
 
             snapshot['left_nodes'].empty?
+        end
+
+        # Return true if the snapshot exists
+        #
+        # @param snap_id [Integer] Snapshot ID
+        def snapshot_exist?(snap_id)
+            !find_snapshot(snap_id).nil?
         end
 
         # Creates a system snapshot object
@@ -189,6 +203,16 @@ module OpenNebula
             snap_id
         end
 
+        # Prepare snapshot for revert operation
+        #
+        # @param snap_id [Integer] Snapshot ID
+        def snapshot_revert(snap_id)
+            snapshot = find_snapshot(snap_id)
+
+            nodes                  = Marshal.dump(snapshot['nodes_ids'])
+            snapshot['left_nodes'] = Marshal.load(nodes)
+        end
+
         # Get next node to snapshot
         #
         # @param snap_id [String] Snapshot ID
@@ -211,11 +235,10 @@ module OpenNebula
         # Delete node ID from left nodes to process
         #
         # @param snap_id [String] Snapshot ID
-        # @param node_id [String] VM ID
-        def delete_snap_node(snap_id, node_id)
+        def delete_snap_node(snap_id)
             snapshot = find_snapshot(snap_id)
 
-            snapshot['left_nodes'].delete(node_id)
+            snapshot['left_nodes'].delete_at(0)
         end
 
         # Update node information with snapshot ID from OpenNebula
@@ -617,8 +640,10 @@ module OpenNebula
         # TODO: Make this value configurable
         MAX_LOG = 50
 
-        def find_snapshot(snap_id)
-            @body['snapshots'].find {|s| s['snapshot_id'] == snap_id }
+        def find_snapshot(snap)
+            @body['snapshots'].find do |s|
+                s['snapshot_id'] == snap || s['name'] == snap
+            end
         end
 
         def update_body(body)

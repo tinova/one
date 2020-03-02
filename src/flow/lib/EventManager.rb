@@ -34,7 +34,8 @@ class EventManager
         'WAIT_COOLDOWN'  => :wait_cooldown,
 
         # SNAPSHOT ACTIONS
-        'SNAPSHOT_CREATE' => :snapshot_create
+        'SNAPSHOT_CREATE' => :snapshot_create,
+        'SNAPSHOT_REVERT' => :snapshot_revert
     }
 
     FAILURE_STATES = %w[
@@ -85,10 +86,10 @@ class EventManager
                             method('wait_scaleup_action'))
         @am.register_action(ACTIONS['WAIT_SCALEDOWN'],
                             method('wait_scaledown_action'))
-
-        # Register snapshot actions
         @am.register_action(ACTIONS['SNAPSHOT_CREATE'],
                             method('snapshot_create'))
+        @am.register_action(ACTIONS['SNAPSHOT_REVERT'],
+                            method('snapshot_revert'))
 
         Thread.new { @am.start_listener }
     end
@@ -260,6 +261,49 @@ class EventManager
                                 snap_id,
                                 rc,
                                 node_id)
+
+        end
+    end
+
+    # Revert a snapshot
+    #
+    # @param service_id [String] Service ID
+    # @param snap_id    [Stirng] Flow snapshot ID
+    # @param node       [Hash]   Node and snapshot ID
+    def snapshot_revert(client, service_id, snap_id, node)
+        node_id     = node.keys[0]
+        one_snap_id = node[node_id]
+
+        Log.info LOG_COMP, "Reverting snapshot #{one_snap_id}of node " \
+                           "#{node_id} in service #{service_id}."
+
+        # retrieve VM information
+        vm = OpenNebula::VirtualMachine.new_with_id(node_id, client)
+        rc = vm.info
+
+        if OpenNebula.is_error?(rc)
+            @lcm.trigger_action(:snapshot_revert_failure_cb,
+                                service_id,
+                                client,
+                                service_id,
+                                rc.message)
+        end
+
+        rc = vm.snapshot_revert(one_snap_id)
+
+        if OpenNebula.is_error?(rc)
+            @lcm.trigger_action(:snapshot_revert_failure_cb,
+                                service_id,
+                                client,
+                                service_id,
+                                rc.message)
+
+        else
+            @lcm.trigger_action(:snapshot_revert_cb,
+                                service_id,
+                                client,
+                                service_id,
+                                snap_id)
 
         end
     end

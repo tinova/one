@@ -382,6 +382,21 @@ post '/service/:id/snapshot_create' do
     body
 end
 
+post '/service/:id/snapshot_revert' do
+    call_body = JSON.parse(request.body.read)
+
+    rc = lcm.snapshot_revert_action(@client,
+                                    params[:id],
+                                    call_body['snap_id'])
+
+    if OpenNebula.is_error?(rc)
+        return internal_error(rc.message, one_error_to_http(rc.errno))
+    end
+
+    status 201
+    body
+end
+
 ##############################################################################
 # Service Template
 ##############################################################################

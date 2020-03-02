@@ -47,7 +47,9 @@ class ServiceLCM
 
         # Snapshots callbacks
         'SNAPSHOT_CREATE_CB'         => :snapshot_create_cb,
-        'SNAPSHOT_CREATE_FAILURE_CB' => :snapshot_create_failure_cb
+        'SNAPSHOT_CREATE_FAILURE_CB' => :snapshot_create_failure_cb,
+        'SNAPSHOT_REVERT_CB'         => :snapshot_revert_cb,
+        'SNAPSHOT_REVERT_FAILURE_CB' => :snapshot_revert_failure_cb
     }
 
     def initialize(client, concurrency, cloud_auth)
@@ -93,6 +95,10 @@ class ServiceLCM
                             method('snapshot_create_cb'))
         @am.register_action(ACTIONS['SNAPSHOT_CREATE_FAILURE_CB'],
                             method('snapshot_create_failure_cb'))
+        @am.register_action(ACTIONS['SNAPSHOT_REVERT_CB'],
+                            method('snapshot_revert_cb'))
+        @am.register_action(ACTIONS['SNAPSHOT_REVERT_FAILURE_CB'],
+                            method('snapshot_revert_failure_cb'))
 
         Thread.new { @am.start_listener }
 
@@ -415,6 +421,54 @@ class ServiceLCM
         rc
     end
 
+    # Revert a service snapshot
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    # @param snap_id    [Integer]            Snapshot ID
+    def snapshot_revert_action(client, service_id, snap_id)
+        rc = @srv_pool.get(service_id, client) do |service|
+            unless service.can_snapshot?
+                break OpenNebula::Error.new(
+                    'Snapshot can not be reverted in state: ' \
+                    "#{service.state_str}"
+                )
+            end
+
+            unless service.snapshot_exist?(snap_id)
+                break OpenNebula::Error.new(
+                    "Snapshot #{snap_id} doesn't exist"
+                )
+            end
+
+            # stop watchdog
+            @wd.stop(service.id)
+
+            service.snapshot_revert(snap_id)
+
+            # get node and snapshot IDs
+            node = service.next_snap_node(snap_id)
+
+            service.set_state(Service::STATE['SNAPSHOT_REVERT'])
+
+            service.roles.each do |_, role|
+                role.set_state(Role::STATE['SNAPSHOT_REVERT'])
+            end
+
+            @event_manager.trigger_action(:snapshot_revert,
+                                          service.id,
+                                          client,
+                                          service.id,
+                                          snap_id,
+                                          node)
+            service.update
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
+    end
+
     # Recover service
     #
     # @param client     [OpenNebula::Client] Client executing action
@@ -728,7 +782,7 @@ class ServiceLCM
 
     def snapshot_create_cb(client, service_id, snap_id, node_snap_id, node_id)
         rc = @srv_pool.get(service_id, client) do |service|
-            service.delete_snap_node(snap_id, node_id)
+            service.delete_snap_node(snap_id)
 
             service.update_snap_node(snap_id, node_id, node_snap_id)
 
@@ -774,6 +828,58 @@ class ServiceLCM
 
             service.roles.each do |_, role|
                 role.set_state(Role::STATE['FAILED_SNAPSHOT'])
+            end
+
+            service.update
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+    end
+
+    def snapshot_revert_cb(client, service_id, snap_id)
+        rc = @srv_pool.get(service_id, client) do |service|
+            service.delete_snap_node(snap_id)
+
+            if service.all_snapshot?(snap_id)
+                # start watchdog again
+                @wd.start(service.id, service.roles)
+
+                service.set_state(Service::STATE['RUNNING'])
+
+                service.roles.each do |_, role|
+                    role.set_state(Role::STATE['RUNNING'])
+                end
+
+                service.delete_left_nodes(snap_id)
+            else
+                # get snapshot information
+                node = service.next_snap_node(snap_id)
+
+                @event_manager.trigger_action(:snapshot_revert,
+                                              service.id,
+                                              client,
+                                              service.id,
+                                              snap_id,
+                                              node)
+            end
+
+            service.update
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+    end
+
+    def snapshot_revert_failure_cb(client, service_id, error)
+        rc = @srv_pool.get(service_id, client) do |service|
+            Log.error LOG_COMP, "Error reverting snapshot: #{error}"
+
+            # stop actions for the service if snapshot fails
+            @event_manager.cancel_action(service_id)
+
+            service.set_state(Service::STATE['FAILED_SNAPSHOT_REVERT'])
+
+            service.roles.each do |_, role|
+                role.set_state(Role::STATE['FAILED_SNAPSHOT_REVERT'])
             end
 
             service.update

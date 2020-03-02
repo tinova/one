@@ -160,6 +160,24 @@ CommandParser::CmdParser.new(ARGV) do
 
     ###
 
+    snapshot_revert_desc = <<-EOT.unindent
+        Revert a system snapshot to the service
+    EOT
+
+    command :'snapshot-revert', snapshot_revert_desc, :service_id, :snap_id do
+        client = helper.client(options)
+        params = {}
+
+        params['snap_id'] = args[1]
+
+        Service.perform_action(args[0]) do |service_id|
+            client.post("#{RESOURCE_PATH}/#{service_id}/snapshot_revert",
+                        JSON.pretty_generate(params))
+        end
+    end
+
+    ###
+
     recover_desc = <<-EOT.unindent
         Recover a failed service, cleaning the failed VMs.
             From FAILED_DEPLOYING continues deploying the Service
