@@ -106,6 +106,10 @@ public:
 
     void last_monitored(time_t lm) { _last_monitored = lm; }
 
+    time_t last_sync_state() const { return _last_sync_state; }
+
+    void last_sync_state(time_t ls) { _last_sync_state = ls; }
+
     bool monitor_in_progress() const { return _monitor_in_progress; }
 
     void monitor_in_progress(bool monitoring) { _monitor_in_progress = monitoring; }
@@ -132,7 +136,9 @@ private:
 
     Template _obj_template;
 
-    time_t   _last_monitored = 0;
+    time_t   _last_monitored  = 0;
+    time_t   _last_sync_state = 0;
+
     bool     _monitor_in_progress = false;
 };
 

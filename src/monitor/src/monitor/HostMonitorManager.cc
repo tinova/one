@@ -300,6 +300,29 @@ void HostMonitorManager::update_last_monitor(int oid)
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
+
+time_t HostMonitorManager::update_last_sync_state(int oid)
+{
+    auto host = hpool->get(oid);
+
+    if (!host.valid())
+    {
+        NebulaLog::warn("HMM", "vm_state: unknown host " + to_string(oid));
+        return 0;
+    }
+
+    if (host->state() == Host::HostState::OFFLINE)
+    {
+        // Host is offline, we shouldn't receive monitoring
+        return 0;
+    }
+
+    host->last_sync_state(time(nullptr));
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void HostMonitorManager::monitor_vm(int oid,
                                     const string& uuid,
                                     const Template &tmpl)
