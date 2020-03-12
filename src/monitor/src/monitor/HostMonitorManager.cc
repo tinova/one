@@ -316,10 +316,7 @@ time_t HostMonitorManager::update_last_sync_state(int oid)
         // Host is offline, we shouldn't receive monitoring
         return 0;
     }
-
-    host->last_sync_state(time(nullptr));
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
@@ -413,7 +410,6 @@ void HostMonitorManager::timer_action()
         NebulaLog::info("HMM", "--Mark--");
         mark = 0;
     }
-
 
     hpool->clean_expired_monitoring();
     vmpool->clean_expired_monitoring();

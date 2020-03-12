@@ -92,6 +92,7 @@ class VirtualMachineDB
     def to_status
         time = Time.now.to_i
         last = @db.execute("SELECT MAX(timestamp) from #{@dataset}").flatten![0]
+        last ||= 0
 
         return to_sync_status if time > (last + @conf[:sync])
 

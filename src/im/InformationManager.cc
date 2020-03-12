@@ -368,6 +368,8 @@ static LCMAction::Actions test_and_trigger(const string& state_str,
 
 void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
 {
+    LifeCycleManager* lcm = Nebula::instance().get_lcm();
+
     char *   error_msg;
     Template tmpl;
 
@@ -447,8 +449,6 @@ void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
 
         if ( action != LCMAction::NONE )
         {
-            LifeCycleManager* lcm = Nebula::instance().get_lcm();
-
             lcm->trigger(action, vm->get_oid());
 
             if ( !vm_msg.empty() )
@@ -488,10 +488,10 @@ void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
     set<int> zombies;
 
     set_difference(host_ids.begin(), host_ids.end(), hv_ids.begin(),
-            hv_ids.end(), missing.begin());
+            hv_ids.end(), inserter(missing, missing.begin()));
 
     set_difference(hv_ids.begin(), hv_ids.end(), host_ids.begin(),
-            host_ids.end(), zombies.begin());
+            host_ids.end(), inserter(zombies, zombies.begin()));
 
     host->update_zombies(zombies);
 
@@ -520,20 +520,18 @@ void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
             continue;
         }
 
-        LCMAction::Actions action = test_and_trigger(state_str, vm->get_state(),
-                vm->get_lcm_state(), vm_msg);
+        LCMAction::Actions action;
 
-        if ( action != LCMAction::NONE )
+        if ( state_str == "POWEROFF" )
         {
-            LifeCycleManager* lcm = Nebula::instance().get_lcm();
-
-            lcm->trigger(action, vm->get_oid());
-
-            if ( !vm_msg.empty() )
-            {
-                vm->log("VMM", Log::INFO, vm_msg);
-            }
+            action = LCMAction::MONITOR_POWEROFF;
         }
+        else if ( state_str == "UNKNOWN" )
+        {
+            action = LCMAction::MONITOR_DONE;
+        }
+
+        lcm->trigger(action, vm->get_oid());
     }
 }
 
