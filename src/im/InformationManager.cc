@@ -530,6 +530,10 @@ void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
         {
             action = LCMAction::MONITOR_DONE;
         }
+        else
+        {
+            action = LCMAction::MONITOR_POWEROFF;
+        }
 
         lcm->trigger(action, vm->get_oid());
     }

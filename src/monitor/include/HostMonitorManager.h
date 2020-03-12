@@ -96,13 +96,6 @@ public:
     void update_last_monitor(int oid);
 
     /**
-     *  Updates the last sync message time for the host
-     *    @param oid of host
-     *    @return last sync time
-     */
-    time_t update_last_sync_state(int oid);
-
-    /**
      *  Remove host from the pool
      *    @param oid host id
      */
