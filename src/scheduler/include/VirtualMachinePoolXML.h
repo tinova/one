@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -153,11 +153,15 @@ public:
      *
      * @param vid The VM id
      * @param action Action argument (terminate, hold, release...)
+     * @param args Action arguments
      * @param error_msg Error reason, if any
      *
      * @return 0 on success, -1 otherwise
      */
-    int action(int vid, const string &action, string &error_msg) const;
+    int action(int vid,
+               const string &action,
+               const string &args,
+               string &error_msg) const;
 
 protected:
 

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -1065,9 +1065,9 @@ int VirtualNetwork::update_ar(
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int VirtualNetwork::rm_ar(unsigned int ar_id, string& error_msg)
+int VirtualNetwork::rm_ar(unsigned int ar_id, bool force, string& error_msg)
 {
-    return ar_pool.rm_ar(ar_id, error_msg);
+    return ar_pool.rm_ar(ar_id, force, error_msg);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -435,6 +435,24 @@ class Template
         return ipv4, ipv6
     end
 
+    # Get vSwitch of Standard PortGroup
+    # If there is differents vSwitches returns the first.
+    def vSwitch(vc_pg)
+        vswitch = []
+        vc_hosts = vc_pg.host
+        vc_hosts.each do |vc_host|
+            host_pgs = vc_host.configManager.networkSystem.networkInfo.portgroup
+            host_pgs.each do |pg|
+                if vc_pg.name == pg.spec.name
+                    vswitch << pg.spec.vswitchName
+                end
+            end
+        end
+        vswitch.uniq!
+        vswitch << 'Invalid configuration' if vswitch.length > 1
+        vswitch.join(" / ")
+    end
+
     def import_vcenter_nics(vc_uuid, npool, hpool, vcenter_instance_name,
                             template_ref, vm_object, vm_id=nil, dc_name=nil)
         nic_info = ''
@@ -520,8 +538,38 @@ class Template
                         unmanaged = "template"
                     end
 
+                    case nic[:pg_type]
+                    # Distributed PortGroups
+                    when VCenterDriver::Network::NETWORK_TYPE_DPG
+                        config[:sw_name] = nic[:network].config.distributedVirtualSwitch.name
+                        # For DistributedVirtualPortgroups there is networks and uplinks
+                        config[:uplink] = false
+                    # NSX-V PortGroups
+                    when VCenterDriver::Network::NETWORK_TYPE_NSXV
+                        config[:sw_name] = nic[:network].config.distributedVirtualSwitch.name
+                        # For NSX-V ( is the same as DistributedVirtualPortgroups )
+                        # there is networks and uplinks
+                        config[:uplink] = false
+                    # Standard PortGroups
+                    when VCenterDriver::Network::NETWORK_TYPE_PG
+                        # There is no uplinks for standard portgroups, so all Standard
+                        # PortGroups are networks and no uplinks
+                        config[:uplink] = false
+                        config[:sw_name] = vSwitch(nic[:network])
+                    # NSX-T PortGroups
+                    when VCenterDriver::Network::NETWORK_TYPE_NSXT
+                        config[:sw_name] = \
+                        nic[:network].summary.opaqueNetworkType
+                        # There is no uplinks for NSX-T networks, so all NSX-T networks
+                        # are networks and no uplinks
+                        config[:uplink] = false
+                    else
+                        raise "Unknown network type: #{nic[:pg_type]}"
+                    end
+
                     import_opts = {
                         :network_name=>          nic[:net_name],
+                        :sw_name=>               config[:sw_name],
                         :network_ref=>           nic[:net_ref],
                         :network_type=>          nic[:pg_type],
                         :ccr_ref=>               ccr_ref,
@@ -899,81 +947,6 @@ class Template
 
     def get_esx_name
         self['runtime.host.name']
-    end
-
-    def vm_to_one(vm_name)
-        str = "NAME   = \"#{vm_name}\"\n"\
-              "CPU    = \"#{@vm_info["config.hardware.numCPU"]}\"\n"\
-              "vCPU   = \"#{@vm_info["config.hardware.numCPU"]}\"\n"\
-              "MEMORY = \"#{@vm_info["config.hardware.memoryMB"]}\"\n"\
-              "HYPERVISOR = \"vcenter\"\n"\
-              "CONTEXT = [\n"\
-              "    NETWORK = \"YES\",\n"\
-              "    SSH_PUBLIC_KEY = \"$USER[SSH_PUBLIC_KEY]\"\n"\
-              "]\n"\
-              "VCENTER_INSTANCE_ID =\"#{@vm_info[:vc_uuid]}\"\n"\
-              "VCENTER_CCR_REF =\"#{@vm_info[:cluster_ref]}\"\n"
-
-        str << "IMPORT_VM_ID =\"#{self["_ref"]}\"\n"
-        @state = 'POWEROFF' if @state == 'd'
-        str << "IMPORT_STATE =\"#{@state}\"\n"
-
-         # Get DS information
-        if !@vm_info["datastore"].nil?
-           !@vm_info["datastore"].last.nil? &&
-           !@vm_info["datastore"].last._ref.nil?
-            ds_ref = vm_template_ds_ref
-            str << "VCENTER_DS_REF = \"#{ds_ref}\"\n"
-       end
-
-        vnc_port = nil
-        keymap = VCenterDriver::VIHelper.get_default("VM/TEMPLATE/GRAPHICS/KEYMAP")
-
-        @vm_info["config.extraConfig"].select do |xtra|
-            if xtra[:key].downcase=="remotedisplay.vnc.port"
-                vnc_port = xtra[:value]
-            end
-
-            if xtra[:key].downcase=="remotedisplay.vnc.keymap"
-                keymap = xtra[:value]
-            end
-        end
-
-        if !@vm_info["config.extraConfig"].empty?
-            str << "GRAPHICS = [\n"\
-                   "  TYPE     =\"vnc\",\n"
-            str << "  PORT     =\"#{vnc_port}\",\n" if vnc_port
-            str << "  KEYMAP   =\"#{keymap}\",\n" if keymap
-            str << "  LISTEN   =\"0.0.0.0\"\n"
-            str << "]\n"
-        end
-
-        if !@vm_info["config.annotation"] || @vm_info["config.annotation"].empty?
-            str << "DESCRIPTION = \"vCenter Template imported by OpenNebula" \
-                " from Cluster #{@vm_info["cluster_name"]}\"\n"
-        else
-            notes = @vm_info["config.annotation"].gsub("\\", "\\\\").gsub("\"", "\\\"")
-            str << "DESCRIPTION = \"#{notes}\"\n"
-        end
-
-        case @vm_info["guest.guestFullName"]
-            when /CentOS/i
-                str << "LOGO=images/logos/centos.png\n"
-            when /Debian/i
-                str << "LOGO=images/logos/debian.png\n"
-            when /Red Hat/i
-                str << "LOGO=images/logos/redhat.png\n"
-            when /Ubuntu/i
-                str << "LOGO=images/logos/ubuntu.png\n"
-            when /Windows XP/i
-                str << "LOGO=images/logos/windowsxp.png\n"
-            when /Windows/i
-                str << "LOGO=images/logos/windows8.png\n"
-            when /Linux/i
-                str << "LOGO=images/logos/linux.png\n"
-        end
-
-        return str
     end
 
     #Gets MOREF from Datastore used by the VM. It validates

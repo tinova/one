@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -80,7 +80,7 @@ void OneMonitorDriver::host_system_info(int oid, const std::string& status,
 {
     Message<OpenNebulaMessages> oned_msg;
 
-    oned_msg.type(OpenNebulaMessages::SYSTEM_HOST);
+    oned_msg.type(OpenNebulaMessages::HOST_SYSTEM);
     oned_msg.oid(oid);
     oned_msg.status(status);
     oned_msg.payload(payload);

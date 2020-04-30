@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -70,7 +70,7 @@ class Container
         @one = one
 
         @lxc_command = 'lxc'
-        @lxc_command.prepend 'sudo ' if client.snap
+        @lxc_command.prepend 'sudo -n ' if client.snap
 
         @rootfs_dir = "#{@client.lxd_path}/storage-pools/default/containers/"\
         "#{name}/rootfs"
@@ -501,7 +501,7 @@ class Container
     def del_bridge_port(nic)
         return true unless /ovswitch/ =~ nic['VN_MAD']
 
-        cmd = 'sudo ovs-vsctl --if-exists del-port '\
+        cmd = 'sudo -n ovs-vsctl --if-exists del-port '\
         "#{nic['BRIDGE']} #{nic['TARGET']}"
 
         rc, _o, e = Command.execute(cmd, false)

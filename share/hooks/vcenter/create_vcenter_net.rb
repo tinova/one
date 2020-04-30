@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -33,6 +33,7 @@ end
 
 if File.directory?(GEMS_LOCATION)
     Gem.use_paths(GEMS_LOCATION)
+    $LOAD_PATH.reject! {|l| l =~ /(vendor|site)_ruby/ }
 end
 
 $LOAD_PATH << RUBY_LIB_LOCATION
@@ -78,7 +79,7 @@ def create_dpg(one_vnet, dc, cluster, vi_client)
     begin
         # Get parameters needed to create the network
         pnics   = one_vnet['TEMPLATE/PHYDEV']
-        pg_name = one_vnet['TEMPLATE/BRIDGE']
+        pg_name = one_vnet['NAME']
         sw_name = one_vnet['TEMPLATE/VCENTER_SWITCH_NAME']
         mtu     = one_vnet['TEMPLATE/MTU']
         vlan_id = one_vnet['VLAN_ID'] || 0
@@ -149,7 +150,7 @@ def create_pg(one_vnet, esx_host)
     begin
         # Get parameters needed to create the network
         pnics   = one_vnet['TEMPLATE/PHYDEV']
-        pg_name = one_vnet['TEMPLATE/BRIDGE']
+        pg_name = one_vnet['NAME']
         sw_name = one_vnet['TEMPLATE/VCENTER_SWITCH_NAME']
         mtu     = one_vnet['TEMPLATE/MTU']
         vlan_id = one_vnet['VLAN_ID'] || 0

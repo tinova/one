@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -52,7 +52,7 @@ const EString<OpenNebulaMessages> Message<OpenNebulaMessages>::_type_str({
     {"STOP_MONITOR", OpenNebulaMessages::STOP_MONITOR},
     {"HOST_STATE", OpenNebulaMessages::HOST_STATE},
     {"VM_STATE", OpenNebulaMessages::VM_STATE},
-    {"SYSTEM_HOST", OpenNebulaMessages::SYSTEM_HOST},
+    {"HOST_SYSTEM", OpenNebulaMessages::HOST_SYSTEM},
 });
 
 /* ************************************************************************** */

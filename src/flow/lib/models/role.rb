@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -47,6 +47,11 @@ module OpenNebula
             poweroff
             poweroff-hard
             snapshot-create
+            snapshot-revert
+            snapshot-delete
+            disk-snapshot-create
+            disk-snapshot-revert
+            disk-snapshot-delete
         ]
 
         STATE = {
@@ -515,10 +520,11 @@ module OpenNebula
         end
 
         # Schedule the given action on all the VMs that belong to the Role
-        # @param [String] action one of the available SCHEDULE_ACTIONS
+        # @param [String]  action one of the available SCHEDULE_ACTIONS
         # @param [Integer] period
         # @param [Integer] vm_per_period
-        def batch_action(action, period, vms_per_period)
+        # @param [String]  action arguments
+        def batch_action(action, period, vms_per_period, args)
             vms_id      = []
             error_msgs  = []
             nodes       = @body['nodes']
@@ -565,8 +571,11 @@ module OpenNebula
                         time_offset = offset * period.to_i
                     end
 
-                    tmp_str << "\nSCHED_ACTION = [ID = #{id},ACTION = "\
-                               "#{action}, TIME = #{now + time_offset}]"
+                    tmp_str << "\nSCHED_ACTION = ["
+                    tmp_str << "ID = #{id},"
+                    tmp_str << "ACTION = #{action},"
+                    tmp_str << "ARGS = \"#{args}\"," if args
+                    tmp_str << "TIME = #{now + time_offset}]"
 
                     rc = vm.update(tmp_str)
                     if OpenNebula.is_error?(rc)
@@ -670,7 +679,7 @@ module OpenNebula
         # Recover
         ########################################################################
 
-        def recover_deploy
+        def recover_deploy(report)
             nodes = @body['nodes']
             deployed_nodes = []
 
@@ -693,7 +702,8 @@ module OpenNebula
                 vm_state = vm.state
                 lcm_state = vm.lcm_state
 
-                next false if vm_state == 3 && lcm_state == 3 # ACTIVE/RUNNING
+                # ACTIVE/RUNNING
+                next false if vm_state == 3 && lcm_state == 3 && !report
 
                 next true if vm_state == '6' # Delete DONE nodes
 
@@ -736,11 +746,11 @@ module OpenNebula
         # def recover_warning
         # end
 
-        def recover_scale
+        def recover_scale(report)
             rc = nil
 
             if @body['scale_way'] == SCALE_WAYS['UP']
-                rc = [recover_deploy, true]
+                rc = [recover_deploy(report), true]
             elsif @body['scale_way'] == SCALE_WAYS['DOWN']
                 rc = [recover_undeploy, false]
             end

@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -53,24 +53,24 @@ class Mapper
     #   as root
     #---------------------------------------------------------------------------
     COMMANDS = {
-        :lsblk      => 'sudo lsblk',
-        :losetup    => 'sudo losetup',
-        :mount      => 'sudo mount',
-        :umount     => 'sudo umount',
-        :kpartx     => 'sudo kpartx',
-        :nbd        => 'sudo -u root -g oneadmin qemu-nbd',
-        :su_mkdir   => 'sudo mkdir -p',
+        :lsblk      => 'sudo -n lsblk',
+        :losetup    => 'sudo -n losetup',
+        :mount      => 'sudo -n mount',
+        :umount     => 'sudo -n umount',
+        :kpartx     => 'sudo -n kpartx',
+        :nbd        => 'sudo -n -u root -g oneadmin qemu-nbd',
+        :su_mkdir   => 'sudo -n mkdir -p',
         :mkdir      => 'mkdir -p',
-        :catfstab   => 'sudo catfstab',
+        :catfstab   => 'sudo -n catfstab',
         :cat        => 'cat',
         :file       => 'file -L -s',
-        :blkid      => 'sudo blkid',
-        :e2fsck     => 'sudo e2fsck',
-        :resize2fs  => 'sudo resize2fs',
-        :xfs_growfs => 'sudo xfs_growfs',
-        :rbd        => 'sudo rbd-nbd --id',
-        :xfs_admin  => 'sudo xfs_admin',
-        :tune2fs    => 'sudo tune2fs',
+        :blkid      => 'sudo -n blkid',
+        :e2fsck     => 'sudo -n e2fsck',
+        :resize2fs  => 'sudo -n resize2fs',
+        :xfs_growfs => 'sudo -n xfs_growfs',
+        :rbd        => 'sudo -n rbd-nbd --id',
+        :xfs_admin  => 'sudo -n xfs_admin',
+        :tune2fs    => 'sudo -n tune2fs',
         :mkfs       => '/sbin/mkfs'
     }
 

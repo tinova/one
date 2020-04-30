@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -27,7 +27,7 @@ int VMRPCPool::update_monitoring(const VirtualMachineMonitorInfo& monitoring)
         return 0;
     }
 
-    auto sql_xml = db->escape_str(monitoring.to_xml_extended());
+    auto sql_xml = db->escape_str(monitoring.to_xml());
 
     if (sql_xml == 0)
     {

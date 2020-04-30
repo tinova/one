@@ -1,6 +1,6 @@
 # rubocop:disable Naming/FileName
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -56,7 +56,6 @@ class EventManager
     # --------------------------------------------------------------------------
     DEFAULT_CONF = {
         :subscriber_endpoint  => 'tcp://localhost:2101',
-        :timeout_s   => 30,
         :concurrency => 10,
         :cloud_auth  => nil,
         :am          => nil
@@ -68,8 +67,9 @@ class EventManager
         @lcm = options[:lcm]
         @am  = ActionManager.new(@conf[:concurrency], true)
 
-        @context = ZMQ::Context.new(1)
-        @cloud_auth = @conf[:cloud_auth]
+        @context      = ZMQ::Context.new(1)
+        @cloud_auth   = @conf[:cloud_auth]
+        @wait_timeout = @cloud_auth.conf[:wait_timeout]
 
         # Register Action Manager actions
         @am.register_action(ACTIONS['WAIT_DEPLOY'],
@@ -311,9 +311,21 @@ class EventManager
 
             # rubocop:enable Style/GuardClause
 
-            xml   = Nokogiri::XML(Base64.decode64(content))
-            id    = xml.xpath('//PARAMETER[POSITION=2]/VALUE').first.text.to_i
-            ready = xml.xpath('//PARAMETER[POSITION=3]/VALUE').text
+            xml = Nokogiri::XML(Base64.decode64(content))
+
+            id = xml.xpath(
+                '//PARAMETER[POSITION=2 and TYPE=\'IN\']/VALUE'
+            ).text.to_i
+            ready = xml.xpath(
+                '//PARAMETER[POSITION=3 and TYPE=\'IN\']/VALUE'
+            ).text
+
+            # rubocop:disable Style/StringLiterals
+            # Remove extra quotes
+            ready.gsub!("\"", '')
+            ready.gsub!('"', '')
+            ready.gsub!(' ', '')
+            # rubocop:enable Style/StringLiterals
 
             next if !ready.match('READY=YES') || !nodes.include?(id)
 
@@ -373,7 +385,7 @@ class EventManager
 
             vm_lcm_state = OpenNebula::VirtualMachine::LCM_STATE[vm.lcm_state]
 
-            if vm['VM/USER_TEMPLATE/READY'] == 'YES'
+            if vm['/VM/USER_TEMPLATE/READY'] == 'YES'
                 rc_nodes[:successful] << node
 
                 next true
@@ -402,7 +414,7 @@ class EventManager
     def gen_subscriber
         subscriber = @context.socket(ZMQ::SUB)
         # Set timeout (TODO add option for customize timeout)
-        subscriber.setsockopt(ZMQ::RCVTIMEO, @conf[:timeout_s] * 10**3)
+        subscriber.setsockopt(ZMQ::RCVTIMEO, @wait_timeout * 10**3)
         subscriber.connect(@conf[:subscriber_endpoint])
 
         subscriber

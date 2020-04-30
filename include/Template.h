@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -21,6 +21,7 @@
 #include <set>
 #include <vector>
 #include <string>
+#include <functional>
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -41,9 +42,9 @@ class Template
 {
 public:
 
-    Template(bool         _replace_mode = false,
-             const char   _separator    = '=',
-             const char * _xml_root     = "TEMPLATE"):
+    explicit Template(bool         _replace_mode = false,
+                      const char   _separator    = '=',
+                      const char * _xml_root     = "TEMPLATE"):
                  replace_mode(_replace_mode),
                  separator(_separator),
                  xml_root(_xml_root){}
@@ -472,6 +473,17 @@ public:
     bool empty() const
     {
         return attributes.empty();
+    }
+
+    /**
+     *  Generic iterator over Template attributes
+     */
+    void each_attribute(std::function<void(const Attribute * a)>&& f) const
+    {
+        for(const auto& it: attributes)
+        {
+            f(it.second);
+        }
     }
 
 protected:

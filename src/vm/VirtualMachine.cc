@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -455,7 +455,7 @@ int VirtualMachine::bootstrap(SqlDB * db)
 
     oss_vm << one_db::vm_db_bootstrap;
 
-    if (db->fts_available())
+    if (db->supports(SqlDB::SqlFeature::FTS))
     {
         oss_vm << ", FULLTEXT ftidx(search_token))";
     }
@@ -1018,7 +1018,7 @@ int VirtualMachine::insert(SqlDB * db, string& error_str)
 
             if (deploy_id.empty())
             {
-                deploy_id = name;
+                deploy_id = value;
             }
         }
     }
@@ -1781,7 +1781,7 @@ int VirtualMachine::update_search(SqlDB * db)
 
     db->free_str(sql_text);
 
-    return db->exec_local_wr(oss);
+    return db->exec_wr(oss);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2041,6 +2041,9 @@ void VirtualMachine::remove_security_group(int sgid)
             delete sgs[i];
         }
     }
+
+    SecurityGroupPool* sgpool = Nebula::instance().get_secgrouppool();
+    sgpool->release_security_group(oid, sgid);
 }
 
 /* -------------------------------------------------------------------------- */

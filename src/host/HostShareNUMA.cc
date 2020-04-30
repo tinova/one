@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------------*/
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems             */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems             */
 /*                                                                         */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may */
 /* not use this file except in compliance with the License. You may obtain */
@@ -775,7 +775,7 @@ void HostShareNUMA::set_monitorization(Template &ht, unsigned int _vt)
 
     std::vector<VectorAttribute *> cores;
 
-    ht.remove("CORE", cores);
+    ht.get("CORE", cores);
 
     for (auto it = cores.begin(); it != cores.end(); ++it)
     {
@@ -797,7 +797,7 @@ void HostShareNUMA::set_monitorization(Template &ht, unsigned int _vt)
 
     std::vector<VectorAttribute *> pages;
 
-    ht.remove("HUGEPAGE", pages);
+    ht.get("HUGEPAGE", pages);
 
     for (auto it = pages.begin(); it != pages.end(); ++it)
     {
@@ -822,7 +822,7 @@ void HostShareNUMA::set_monitorization(Template &ht, unsigned int _vt)
 
     std::vector<VectorAttribute *> memory;
 
-    ht.remove("MEMORY_NODE", memory);
+    ht.get("MEMORY_NODE", memory);
 
     for (auto it = memory.begin(); it != memory.end(); ++it)
     {

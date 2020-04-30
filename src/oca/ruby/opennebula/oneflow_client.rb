@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -36,7 +36,12 @@ module Role
         'reboot-hard',
         'poweroff',
         'poweroff-hard',
-        'snapshot-create'
+        'snapshot-create',
+        'snapshot-revert',
+        'snapshot-delete',
+        'disk-snapshot-create',
+        'disk-snapshot-revert',
+        'disk-snapshot-delete'
     ]
 
     STATE = {

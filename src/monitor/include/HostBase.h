@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -101,8 +101,8 @@ protected:
     int init_attributes();
 
 private:
-    Host::HostState _state      = Host::HostState::INIT;
-    Host::HostState _prev_state = Host::HostState::INIT;
+    Host::HostState _state      = Host::INIT;
+    Host::HostState _prev_state = Host::INIT;
 
     std::string _vmm_mad;
     std::string _im_mad;

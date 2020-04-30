@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -74,6 +74,9 @@ UserPool::UserPool(SqlDB * db, time_t __session_expiration_time, bool is_slave,
     Nebula& nd   = Nebula::instance();
 
     _session_expiration_time = __session_expiration_time;
+
+    // Set restricted attributes
+    UserTemplate::parse_restricted(restricted_attrs);
 
     User * oneadmin_user = get_ro(0);
 
@@ -182,9 +185,6 @@ UserPool::UserPool(SqlDB * db, time_t __session_expiration_time, bool is_slave,
     {
         goto error_serveradmin;
     }
-
-    // Set restricted attributes
-    UserTemplate::parse_restricted(restricted_attrs);
 
     return;
 
@@ -1428,8 +1428,7 @@ int UserPool::authorize(AuthRequest& ar)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int UserPool::dump(string& oss, const string& where, const string& limit,
-        bool desc)
+int UserPool::dump(string& oss, const string& where, int sid, int eid, bool desc)
 {
     int     rc;
     string  def_quota_xml;
@@ -1453,9 +1452,9 @@ int UserPool::dump(string& oss, const string& where, const string& limit,
         cmd << " DESC";
     }
 
-    if ( !limit.empty() )
+    if ( eid != -1 )
     {
-        cmd << " LIMIT " << limit;
+        cmd << " " << db->limit_string(sid, eid);
     }
 
     oss.append("<USER_POOL>");

@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------------ */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems              */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems              */
 /*                                                                          */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may  */
 /* not use this file except in compliance with the License. You may obtain  */
@@ -157,6 +157,13 @@ public:
     {
         return vm_actions.get_auth_op(action);
     }
+
+protected:
+    /* Checks the validity of template attributes
+     *    @param error string describing the error if any
+     *    @return 0 on success
+     */
+    int post_update_template(string& error) override;
 
 private:
 

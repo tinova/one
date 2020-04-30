@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -35,13 +35,13 @@ module VCenterDriver
 
     if File.directory?(GEMS_LOCATION)
         Gem.use_paths(GEMS_LOCATION)
+        $LOAD_PATH.reject! {|l| l =~ /(vendor|site)_ruby/ }
     end
 
     $LOAD_PATH << RUBY_LIB_LOCATION
 
     require 'vm_device'
     require 'vm_helper'
-    require 'vm_monitor'
 
     class VirtualMachine < VCenterDriver::Template
 
@@ -52,7 +52,6 @@ module VCenterDriver
         #           VCenterDriver::VirtualMachine::Disk
         include VirtualMachineDevice
         include VirtualMachineHelper
-        include VirtualMachineMonitor
 
         ############################################################################
         # Virtual Machine main Class
@@ -365,6 +364,17 @@ module VCenterDriver
             vm_suffix.gsub!("$i", one_item['ID'])
 
             vm_prefix + one_item['NAME'] + vm_suffix
+        end
+
+        # @return vCenter Tags
+        def vcenter_tags
+            one_item.info if one_item.instance_of?(OpenNebula::VirtualMachine)
+            one_item.retrieve_xmlelements("USER_TEMPLATE/VCENTER_TAG")
+        end
+
+        # @return if has vCenter Tags
+        def vcenter_tags?
+            vcenter_tags.size > 0
         end
 
         ############################################################################
@@ -902,18 +912,22 @@ module VCenterDriver
                             break
                         end
 
-                        raise 'Problem with your unmanaged nics!' unless device
-
-                        nics.delete(device)
+                        if device
+                            nics.delete(device)
+                        else
+                            nil
+                        end
                     }
 
                     unmanaged_nics.each do |unic|
                         vnic      = select_net.call(unic['VCENTER_NET_REF'])
-                        nic_class = vnic.class
+                        nic_class = vnic.class if vnic
                         new_model = Nic.nic_model_class(unic['MODEL']) if unic['MODEL']
 
+                        if vnic.nil?
+                                device_change << calculate_add_nic_spec(unic)
                         # delete actual nic and update the new one.
-                        if new_model && new_model != nic_class
+                        elsif new_model && new_model != nic_class
                                 device_change << { :device => vnic, :operation => :remove }
                                 device_change << calculate_add_nic_spec(unic, vnic.unitNumber)
                         else
@@ -1247,6 +1261,12 @@ module VCenterDriver
                 :extraConfig  => extraconfig,
                 :deviceChange => device_change
             }
+            num_cores = one_item["USER_TEMPLATE/CORES"] || num_cpus.to_i
+            if num_cpus.to_i % num_cores.to_i != 0
+                num_cores = num_cpus.to_i
+            end
+            spec_hash[:numCoresPerSocket] = num_cores.to_i
+
             spec_hash[:bootOptions] = boot_opts if boot_opts
 
             spec = RbVmomi::VIM.VirtualMachineConfigSpec(spec_hash)
@@ -2050,6 +2070,8 @@ module VCenterDriver
 
                 # Add vCenter template name
                 new_template.update("VCENTER_TEMPLATE_NAME=#{@item.name}", true)
+
+                new_template.unlock()
         end
 
         def resize_unmanaged_disks

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -314,7 +314,7 @@ void  LifeCycleManager::deploy_success_action(int vid)
 
         vmpool->update(vm);
     }
-    else
+    else if ( vm->get_lcm_state() != VirtualMachine::RUNNING)
     {
         vm->log("LCM",Log::ERROR,"deploy_success_action, VM in a wrong state");
     }
@@ -938,11 +938,11 @@ void  LifeCycleManager::epilog_success_action(int vid)
 
     vmpool->update_history(vm);
 
-    vmpool->update(vm);
-
     vm->get_capacity(sr);
 
     hpool->del_capacity(vm->get_hid(), sr);
+
+    vmpool->update(vm);
 
     //----------------------------------------------------
 

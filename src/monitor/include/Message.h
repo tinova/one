@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -105,6 +105,11 @@ public:
     const std::string& type_str() const
     {
         return _type_str._to_str(_type);
+    }
+
+    static const std::string& type_str(E t)
+    {
+        return _type_str._to_str(t);
     }
 
     /**

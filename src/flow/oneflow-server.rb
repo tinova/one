@@ -1,6 +1,6 @@
 # rubocop:disable Naming/FileName
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -39,6 +39,7 @@ CONFIGURATION_FILE = ETC_LOCATION + '/oneflow-server.conf'
 
 if File.directory?(GEMS_LOCATION)
     Gem.use_paths(GEMS_LOCATION)
+    $LOAD_PATH.reject! {|l| l =~ /(vendor|site)_ruby/ }
 end
 
 $LOAD_PATH << RUBY_LIB_LOCATION
@@ -78,6 +79,7 @@ conf[:shutdown_action]     ||= 'terminate'
 conf[:action_number]       ||= 1
 conf[:action_period]       ||= 60
 conf[:vm_name_template]    ||= DEFAULT_VM_NAME_TEMPLATE
+conf[:wait_timeout]        ||= 30
 conf[:auth]                = 'opennebula'
 
 set :bind, conf[:host]
@@ -237,7 +239,11 @@ post '/service/:id/action' do
 
     case action['perform']
     when 'recover'
-        rc = lcm.recover_action(@client, params[:id])
+        if opts && opts['delete']
+            rc = lcm.undeploy_action(@client, params[:id], true)
+        else
+            rc = lcm.recover_action(@client, params[:id])
+        end
     when 'chown'
         if opts && opts['owner_id']
             u_id = opts['owner_id'].to_i
@@ -291,8 +297,21 @@ post '/service/:id/action' do
     #             OpenNebula::Error.new("Action #{action['perform']}: " \
     #                                   'Only supported for append')
     #         end
+    when *Role::SCHEDULE_ACTIONS
+        # Use defaults only if one of the options is supplied
+        opts['period'] ||= conf[:action_period]
+        opts['number'] ||= conf[:action_number]
+
+        rc = lcm.service_sched_action(@client,
+                                      params[:id],
+                                      action['perform'],
+                                      opts['period'],
+                                      opts['number'],
+                                      opts['args'])
     else
-        rc = OpenNebula::Error.new("Action #{action['perform']} not supported")
+        rc = OpenNebula::Error.new(
+            "Action #{action['perform']} not supported"
+        )
     end
 
     if OpenNebula.is_error?(rc)
@@ -331,23 +350,22 @@ post '/service/:id/role/:role_name/action' do
     opts   = action['params']
 
     # Use defaults only if one of the options is supplied
-    if opts['period'].nil? && opts['number'].nil?
-        opts['period'] = conf[:action_period] if opts['period'].nil?
-        opts['number'] = conf[:action_number] if opts['number'].nil?
-    end
+    opts['period'] ||= conf[:action_period]
+    opts['number'] ||= conf[:action_number]
 
     rc = lcm.sched_action(@client,
                           params[:id],
                           params[:role_name],
                           action['perform'],
                           opts['period'],
-                          opts['number'])
+                          opts['number'],
+                          opts['args'])
 
     if OpenNebula.is_error?(rc)
         return internal_error(rc.message, one_error_to_http(rc.errno))
     end
 
-    status 201
+    status 204
 end
 
 post '/service/:id/scale' do
@@ -363,8 +381,7 @@ post '/service/:id/scale' do
         return internal_error(rc.message, one_error_to_http(rc.errno))
     end
 
-    status 201
-    body
+    status 204
 end
 
 ##############################################################################
@@ -491,12 +508,13 @@ post '/service_template/:id/action' do
                                   VALIDATION_EC)
         end
 
-        if custom_attrs && !custom_attrs_values
+        if custom_attrs && !custom_attrs.empty? && !custom_attrs_values
             return internal_error('No custom_attrs_values found',
                                   VALIDATION_EC)
         end
 
         if custom_attrs &&
+           !custom_attrs.empty? &&
            custom_attrs_values &&
            !(custom_attrs.keys - custom_attrs_values.keys).empty?
             return internal_error('Every custom_attrs key must have its ' \
@@ -507,6 +525,34 @@ post '/service_template/:id/action' do
         # Check networks
         networks = body['networks']
         networks_values = merge_template['networks_values'] if merge_template
+
+        # Obtain defaults from template
+        if networks && !networks_values
+            networks_values = []
+
+            begin
+                networks.each do |key, value|
+                    net      = {}
+                    net[key] = {}
+
+                    # Format of all available defaults
+                    #
+                    # Existing:    "net": "M|network|||id:0"
+                    # Instantiate: "net": "M|network|||template_id:1"
+                    # Reserve:     "net": "M|network|||reserve_from:0"
+                    value = value.split('|')[4].strip.split(':')
+
+                    net[key][value[0]] = value[1]
+
+                    networks_values << net
+                end
+
+                merge_template ||= {}
+                merge_template['networks_values'] = networks_values
+            rescue StandardError
+                return internal_error('Wrong networks format', VALIDATION_EC)
+            end
+        end
 
         if networks && !(networks.is_a? Hash)
             return internal_error('Wrong networks format', VALIDATION_EC)
@@ -622,6 +668,7 @@ post '/service_template/:id/action' do
         end
 
         new_stemplate = OpenNebula::ServiceTemplate.new_with_id(rc, @client)
+
         rc            = new_stemplate.info
 
         if OpenNebula.is_error?(rc)

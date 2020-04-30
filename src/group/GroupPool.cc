@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -218,8 +218,7 @@ int GroupPool::drop(PoolObjectSQL * objsql, string& error_msg)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int GroupPool::dump(string& oss, const string& where,
-    const string& limit, bool desc)
+int GroupPool::dump(string& oss, const string& where, int sid, int eid, bool desc)
 {
     int     rc;
     string  def_quota_xml;
@@ -243,9 +242,9 @@ int GroupPool::dump(string& oss, const string& where,
         cmd << " DESC";
     }
 
-    if ( !limit.empty() )
+    if ( eid != -1 )
     {
-        cmd << " LIMIT " << limit;
+        cmd << " " << db->limit_string(sid, eid);
     }
 
     oss.append("<GROUP_POOL>");

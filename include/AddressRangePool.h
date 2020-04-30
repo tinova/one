@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -68,9 +68,10 @@ public:
      *  Removes an address range from the pool if it does not contain any used
      *  leases
      *    @param arid of the address range to be removed
+     *    @param force force remove, even if active leases exists
      *    @return 0 on success, -1 if not exists or has used addresses
      */
-    int rm_ar(unsigned int ar_id, string& error_msg);
+    int rm_ar(unsigned int ar_id, bool force, string& error_msg);
 
     /**
      *  Removes all address ranges from the pool if it does not contain any used

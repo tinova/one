@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -140,9 +140,8 @@ class OpenNebulaDriver < ActionManager
     # Start the driver. Reads from STDIN and executes methods associated with
     # the messages
     def start_driver
-        loop_thread = Thread.new { loop }
+        Thread.new { loop }
         start_listener
-        loop_thread.kill
     end
 
     # This function parses a string with this form:
@@ -187,7 +186,7 @@ class OpenNebulaDriver < ActionManager
 
     def loop
         Kernel.loop do
-            exit(-1) if STDIN.eof?
+            exit!(-1) if STDIN.eof?
 
             str = STDIN.gets
             next unless str

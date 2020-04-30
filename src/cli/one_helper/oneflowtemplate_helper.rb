@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -161,7 +161,7 @@ class OneFlowTemplateHelper < OpenNebulaHelper::OneHelper
     # @return [Hash] Custom attributes values
     def custom_attrs(custom_attrs)
         # rubocop:disable Layout/LineLength
-        return unless custom_attrs
+        return if custom_attrs.nil? || custom_attrs.empty?
 
         ret = {}
         ret['custom_attrs_values'] = OpenNebulaHelper.parse_user_inputs(custom_attrs)

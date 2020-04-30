@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -550,7 +550,7 @@ EOT
         mlow = mac[0]
         eui64 = [
             4261412864 + (mlow & 0x00FFFFFF),
-            ((mac[1]+512)<<16) + ((mlow & 0xFF000000)>>16) + 0x000000FF
+            ((mac[1]^0x0200)<<16) + ((mlow & 0xFF000000)>>16) + 0x000000FF
         ]
 
         return (eui64[1] << 32) + eui64[0]

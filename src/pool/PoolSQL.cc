@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -274,8 +274,8 @@ PoolObjectSQL * PoolSQL::get_ro(const string& name, int uid)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int PoolSQL::dump(string& oss, const string& elem_name, const string& column, const char* table,
-    const string& where, const string& limit, bool desc)
+int PoolSQL::dump(string& oss, const string& elem_name, const string& column, 
+        const char* table, const string& where, int sid, int eid, bool desc)
 {
     ostringstream   cmd;
 
@@ -293,9 +293,9 @@ int PoolSQL::dump(string& oss, const string& elem_name, const string& column, co
         cmd << " DESC";
     }
 
-    if ( !limit.empty() )
+    if ( eid != -1 )
     {
-        cmd << " LIMIT " << limit;
+        cmd << " " << db->limit_string(sid, eid);
     }
 
     return dump(oss, elem_name, cmd);

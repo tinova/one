@@ -1,6 +1,6 @@
 # rubocop:disable Naming/FileName
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -151,6 +151,30 @@ class ServiceLCM
         rc
     end
 
+    # Add shced action to service
+    #
+    # @param client     [OpenNebula::Client] Client executing action
+    # @param service_id [Integer]            Service ID
+    # @param action     [String]             Action to perform
+    # @param period     [Integer]            When to execute the action
+    # @param number     [Integer]            How many VMs per period
+    # @param args       [String]             Action arguments
+    #
+    # @return [OpenNebula::Error] Error if any
+    # rubocop:disable Metrics/ParameterLists
+    def service_sched_action(client, service_id, action, period, number, args)
+        # rubocop:enable Metrics/ParameterLists
+        rc = @srv_pool.get(service_id, client) do |service|
+            service.roles.each do |_, role|
+                role.batch_action(action, period, number, args)
+            end
+        end
+
+        Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
+
+        rc
+    end
+
     # Add shced action to service role
     #
     # @param client     [OpenNebula::Client] Client executing action
@@ -159,10 +183,17 @@ class ServiceLCM
     # @param action     [String]             Action to perform
     # @param period     [Integer]            When to execute the action
     # @param number     [Integer]            How many VMs per period
+    # @param args       [String]             Action arguments
     #
     # @return [OpenNebula::Error] Error if any
     # rubocop:disable Metrics/ParameterLists
-    def sched_action(client, service_id, role_name, action, period, number)
+    def sched_action(client,
+                     service_id,
+                     role_name,
+                     action,
+                     period,
+                     number,
+                     args)
         # rubocop:enable Metrics/ParameterLists
         rc = @srv_pool.get(service_id, client) do |service|
             role = service.roles[role_name]
@@ -171,7 +202,7 @@ class ServiceLCM
                 break OpenNebula::Error.new("Role '#{role_name}' not found")
             end
 
-            role.batch_action(action, period, number)
+            role.batch_action(action, period, number, args)
         end
 
         Log.error LOG_COMP, rc.message if OpenNebula.is_error?(rc)
@@ -244,11 +275,12 @@ class ServiceLCM
     #
     # @param client     [OpenNebula::Client] Client executing action
     # @param service_id [Integer]            Service ID
+    # @param delete     [Boolean]            Force flow delete
     #
     # @return [OpenNebula::Error] Error if any
-    def undeploy_action(client, service_id)
+    def undeploy_action(client, service_id, delete = false)
         rc = @srv_pool.get(service_id, client) do |service|
-            unless service.can_undeploy?
+            if !service.can_undeploy? && !delete
                 break OpenNebula::Error.new(
                     'Service cannot be undeployed in state: ' \
                     "#{service.state_str}"
@@ -326,6 +358,11 @@ class ServiceLCM
             set_cardinality(role, cardinality, force)
 
             if cardinality_diff > 0
+                # change client to have right ownership
+                client = @cloud_auth.client("#{service.uname}:#{service.gid}")
+
+                service.replace_client(client)
+
                 role.scale_way('UP')
 
                 rc = deploy_roles(client,
@@ -378,7 +415,13 @@ class ServiceLCM
             elsif service.can_recover_undeploy?
                 recover_undeploy(client, service)
             elsif service.can_recover_scale?
+                # change client to have right ownership
+                client = @cloud_auth.client("#{service.uname}:#{service.gid}")
+
+                service.replace_client(client)
                 recover_scale(client, service)
+            elsif Service::STATE['COOLDOWN'] == service.state
+                service.set_state(Service::STATE['RUNNING'])
             else
                 break OpenNebula::Error.new(
                     'Service cannot be recovered in state: ' \
@@ -644,6 +687,8 @@ class ServiceLCM
             # just update if the cardinality is positive
             set_cardinality(role, cardinality, true) if cardinality >= 0
 
+            role.nodes.delete_if {|n| n['deploy_id'] == node }
+
             service.update
 
             Log.info 'WD',
@@ -679,7 +724,7 @@ class ServiceLCM
     def catch_up(client)
         Log.error LOG_COMP, 'Catching up...'
 
-        @srv_pool.info
+        @srv_pool.info_all
 
         @srv_pool.each do |service|
             recover_action(client, service.id) if service.transient_state?
@@ -789,7 +834,7 @@ class ServiceLCM
         service.roles.each do |name, role|
             next unless role.can_recover_deploy?
 
-            nodes = role.recover_deploy
+            nodes = role.recover_deploy(service.report_ready?)
 
             @event_manager.trigger_action(:wait_deploy,
                                           service.id,
@@ -820,7 +865,7 @@ class ServiceLCM
         service.roles.each do |name, role|
             next unless role.can_recover_scale?
 
-            nodes, up = role.recover_scale
+            nodes, up = role.recover_scale(service.report_ready?)
 
             if up
                 action = :wait_scaleup

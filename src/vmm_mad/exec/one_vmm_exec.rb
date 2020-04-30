@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -34,6 +34,7 @@ end
 
 if File.directory?(GEMS_LOCATION)
     Gem.use_paths(GEMS_LOCATION)
+    $LOAD_PATH.reject! {|l| l =~ /(vendor|site)_ruby/ }
 end
 
 $LOAD_PATH << RUBY_LIB_LOCATION
@@ -67,6 +68,9 @@ class VmmAction
 
         @data = {}
 
+        # Check if SSH Forward Agent should be activated
+        forward = @vmm.options[:delegate_actions].key?(action.to_s.upcase)
+
         get_data(:host)
         get_data(:deploy_id)
         get_data(:checkpoint_file)
@@ -90,6 +94,10 @@ class VmmAction
 
         # Initialize streams and vnm
         @ssh_src = @vmm.get_ssh_stream(action, @data[:host], @id)
+
+        # Activate SSH Forward Agent
+        @ssh_src.set_forward(forward)
+
         @vnm_src = VirtualNetworkDriver.new(src_drvs,
                                             :local_actions  => @vmm.options[:local_actions],
                                             :message        => src_xml.to_s,
@@ -99,6 +107,10 @@ class VmmAction
             dst_drvs, dst_xml = get_vnm_drivers(vm_template)
 
             @ssh_dst = @vmm.get_ssh_stream(action, @data[:dest_host], @id)
+
+            # Activate SSH Forward Agent
+            @ssh_dst.set_forward(forward)
+
             @vnm_dst = VirtualNetworkDriver.new(dst_drvs,
                                                 :local_actions  => @vmm.options[:local_actions],
                                                 :message        => dst_xml.to_s,
@@ -1283,6 +1295,7 @@ opts = GetoptLong.new(
     ['--retries',           '-r', GetoptLong::OPTIONAL_ARGUMENT],
     ['--threads',           '-t', GetoptLong::OPTIONAL_ARGUMENT],
     ['--local',             '-l', GetoptLong::REQUIRED_ARGUMENT],
+    ['--delegate',          '-d', GetoptLong::REQUIRED_ARGUMENT],
     ['--shell',             '-s', GetoptLong::REQUIRED_ARGUMENT],
     ['--parallel',          '-p', GetoptLong::NO_ARGUMENT],
     ['--timeout',           '-w', GetoptLong::OPTIONAL_ARGUMENT]
@@ -1293,6 +1306,7 @@ retries            = 0
 threads            = 15
 shell              = 'bash'
 local_actions      = {}
+delegate_actions   = OpenNebulaDriver.parse_actions_list('migrate')
 single_host        = true
 timeout            = nil
 
@@ -1305,6 +1319,8 @@ begin
             threads = arg.to_i
         when '--local'
             local_actions = OpenNebulaDriver.parse_actions_list(arg)
+        when '--delegate'
+            delegate_actions = OpenNebulaDriver.parse_actions_list(arg)
         when '--shell'
             shell = arg
         when '--parallel'
@@ -1327,6 +1343,7 @@ exec_driver = ExecDriver.new(hypervisor,
                              :concurrency        => threads,
                              :retries            => retries,
                              :local_actions      => local_actions,
+                             :delegate_actions   => delegate_actions,
                              :shell              => shell,
                              :single_host        => single_host,
                              :timeout            => timeout)

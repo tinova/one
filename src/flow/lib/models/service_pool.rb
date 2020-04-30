@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -45,7 +45,7 @@ module OpenNebula
         #
         # @param [OpenNebula::Client] client the xml-rpc client
         # @param [Integer] user_id the filter flag, see
-        #   http://opennebula.org/documentation:rel3.6:api
+        #   http://docs.opennebula.io/stable/integration/system_interfaces/api.html
         #
         # @return [DocumentPool] the new object
         def initialize(cloud_auth, client)
@@ -66,6 +66,15 @@ module OpenNebula
         def info
             osp = OpenNebulaServicePool.new(client)
             rc  = osp.info
+
+            @one_pool = osp
+
+            rc
+        end
+
+        def info_all
+            osp = OpenNebulaServicePool.new(client)
+            rc  = osp.info_all
 
             @one_pool = osp
 

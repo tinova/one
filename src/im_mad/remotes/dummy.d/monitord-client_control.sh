@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -47,6 +47,8 @@ CLIENT_PID_FILE=/tmp/one-monitord-$HID.pid
 
 # Launch the client
 function start_client() {
+    rm $CLIENT_PID_FILE >/dev/null 2>&1
+
     echo "$STDIN" | base64 -d - | /usr/bin/env ruby $CLIENT $ARGV &
 
     echo $! > $CLIENT_PID_FILE
@@ -61,7 +63,7 @@ function stop_client() {
     local pids=$(ps axuww | grep "$CLIENT $ARGV" | grep -v grep | awk '{print $2}')
 
     if [ -n "$pids" ]; then
-        kill -6 $pids
+        kill $pids
     fi
 
     rm -f $CLIENT_PID_FILE

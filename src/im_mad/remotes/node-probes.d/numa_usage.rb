@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -18,6 +18,9 @@
 
 require_relative '../../../lib/numa_common'
 
+#
+# Module for monitoring host NUMA information
+#
 module NUMA
 
     def self.node_to_template(node, nid)

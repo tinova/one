@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -208,19 +208,14 @@ public:
         db->free_str(str);
     }
 
-    bool multiple_values_support()
+    bool supports(SqlDB::SqlFeature ft)
     {
-        return db->multiple_values_support();
+        return db->supports(ft);
     }
 
-    bool limit_support()
+    std::string limit_string(int start_id, int end_id)
     {
-        return db->limit_support();
-    }
-
-    bool fts_available()
-    {
-        return db->fts_available();
+        return db->limit_string(start_id, end_id);
     }
     // -------------------------------------------------------------------------
     // Database methods
@@ -422,19 +417,9 @@ public:
         _logdb->free_str(str);
     }
 
-    bool multiple_values_support()
+    bool supports(SqlDB::SqlFeature ft)
     {
-        return _logdb->multiple_values_support();
-    }
-
-    bool limit_support()
-    {
-        return _logdb->limit_support();
-    }
-
-    bool fts_available()
-    {
-        return _logdb->fts_available();
+        return _logdb->supports(ft);
     }
 
     /**

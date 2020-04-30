@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -22,7 +22,7 @@ running_pid=$(cat /tmp/one-monitord-client.pid)
 pids=$(ps axuwww | grep -e "/monitord-client.rb kvm" | grep -v grep | awk '{ print $2 }' | grep -v "^${running_pid}$")
 
 if [ -n "$pids" ]; then
-    kill -6 $pids
+    kill $pids
 fi
 
 ) > /dev/null

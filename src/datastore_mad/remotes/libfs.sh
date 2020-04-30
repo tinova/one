@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -251,6 +251,19 @@ function fs_size {
     if [ -d "${SRC}" ]; then
         SIZE=`set -o pipefail; du -sb "${SRC}" | cut -f1`
         error=$?
+    elif (echo "${SRC}" | grep -qe '^docker\?://'); then
+        url=`echo ${SRC} | grep -oP "^"docker://"\K.*"`
+        arguments=`echo $url | cut -d '?' -f 2`
+
+        for p in ${arguments//&/ }; do
+            kvp=( ${p/=/ } );
+
+            if [ ${kvp[0]} == 'size' ]; then
+                SIZE=$((${kvp[1]} * 1024 * 1024));
+                error=0
+                break
+            fi
+        done
     elif [ -f "${SRC}" ] || (echo "${SRC}" | grep -qe '^https\?://'); then
         IMAGE=$(mktemp)
 

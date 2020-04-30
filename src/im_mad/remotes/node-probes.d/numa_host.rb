@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -18,6 +18,7 @@
 
 require_relative '../../../lib/numa_common'
 
+# This module extracts NUMA information from a host for firecracker
 module NUMA
 
     def self.node_to_template(node, nid)
@@ -78,7 +79,8 @@ module NUMA
 
                 core_id = File.read("#{core_path}/core_id").chomp
 
-                nodes[node_id]['cores'] << { 'id' => core_id, 'cpus' => siblings }
+                nodes[node_id]['cores'] << { 'id' => core_id,
+                                             'cpus' => siblings }
             rescue StandardError
                 next
             end

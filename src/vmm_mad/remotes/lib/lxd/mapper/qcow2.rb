@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -31,7 +31,7 @@ class Qcow2Mapper < Mapper
         dsrc = one_vm.disk_source(disk)
         File.chmod(0o664, dsrc) if File.symlink?(one_vm.sysds_path)
 
-        map = "#{COMMANDS[:nbd]} -c #{device} #{dsrc}"
+        map = "#{COMMANDS[:nbd]} --fork -c #{device} #{dsrc}"
         rc, _out, err = Command.execute(map, true)
 
         unless rc.zero?

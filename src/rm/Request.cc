@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -1123,9 +1123,8 @@ void RequestAttributes::set_auth_op(VMActions::Action action)
     if (user != nullptr)
     {
         result = user->get_vm_auth_op(action);
+        user->unlock();
     }
-
-    user->unlock();
 
     if (result != AuthRequest::NONE)
     {
@@ -1138,9 +1137,8 @@ void RequestAttributes::set_auth_op(VMActions::Action action)
     if (group != nullptr)
     {
         result = group->get_vm_auth_op(action);
+        group->unlock();
     }
-
-    group->unlock();
 
     if (result != AuthRequest::NONE)
     {

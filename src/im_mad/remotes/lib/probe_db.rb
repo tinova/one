@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -16,18 +16,19 @@
 # limitations under the License.                                             #
 #--------------------------------------------------------------------------- #
 
-ONE_LOCATION = ENV['ONE_LOCATION']
+ONE_LOCATION = ENV['ONE_LOCATION'] if !defined? ONE_LOCATION
 
 if !ONE_LOCATION
-    RUBY_LIB_LOCATION = '/usr/lib/one/ruby'
-    GEMS_LOCATION     = '/usr/share/one/gems'
+    RUBY_LIB_LOCATION ||= '/usr/lib/one/ruby'
+    GEMS_LOCATION     ||= '/usr/share/one/gems'
 else
-    RUBY_LIB_LOCATION = ONE_LOCATION + '/lib/ruby'
-    GEMS_LOCATION     = ONE_LOCATION + '/share/gems'
+    RUBY_LIB_LOCATION ||= ONE_LOCATION + '/lib/ruby'
+    GEMS_LOCATION     ||= ONE_LOCATION + '/share/gems'
 end
 
 if File.directory?(GEMS_LOCATION)
     Gem.use_paths(GEMS_LOCATION)
+    $LOAD_PATH.reject! {|l| l =~ /(vendor|site)_ruby/ }
 end
 
 $LOAD_PATH << RUBY_LIB_LOCATION
@@ -35,6 +36,7 @@ $LOAD_PATH << RUBY_LIB_LOCATION + '/cli'
 
 require 'sqlite3'
 require 'yaml'
+require 'fileutils'
 
 # ------------------------------------------------------------------------------
 # SQlite Interface for the status probes. It stores the last known state of
@@ -49,7 +51,7 @@ class VirtualMachineDB
     DEFAULT_CONFIGURATION = {
         :times_missing => 3,
         :obsolete      => 720,
-        :db_path       => "#{__dir__}/../status.db",
+        :base_path       => "#{__dir__}/../",
         :sync          => 180,
         :missing_state => "POWEROFF"
     }
@@ -71,9 +73,15 @@ class VirtualMachineDB
         File.unlink(conf[:db_path])
     end
 
-    def initialize(hyperv, opts = {})
-        @conf = VirtualMachineDB.load_conf(hyperv, opts)
-        @db   = SQLite3::Database.new(@conf[:db_path])
+    def initialize(hyperv, host, host_id, opts = {})
+        @host = host
+        @host_id = host_id
+        @conf = VirtualMachineDB.load_conf(hyperv, @host_id, opts)
+
+        @mtime = 0
+        @mtime = File.mtime(@conf[:db_path]) if File.exist?(@conf[:db_path])
+
+        @db = SQLite3::Database.new(@conf[:db_path])
 
         bootstrap
 
@@ -92,14 +100,14 @@ class VirtualMachineDB
     def to_status
         time = Time.now.to_i
         last = @db.execute("SELECT MAX(timestamp) from #{@dataset}").flatten![0]
-        last ||= 0
+        last ||= @mtime.to_i
 
-        return sync_status if time > (last + @conf[:sync])
+        return sync_status(@host, @host_id) if last == 0 || time > (last + @conf[:sync])
 
         status_str  = ''
         monitor_ids = []
 
-        vms  = DomainList.state_info
+        vms  = DomainList.state_info(@host, @host_id)
 
         # ----------------------------------------------------------------------
         # report state changes in vms
@@ -108,7 +116,8 @@ class VirtualMachineDB
             if vm[:id] == -1
                 filter = "WHERE uuid = '#{uuid}'"
             else
-                filter = "WHERE id = '#{vm[:id]}'"
+                # in ec2 id could first be -1 but later added, check also uuid
+                filter = "WHERE id = '#{vm[:id]}' OR uuid = '#{uuid}'"
             end
 
             vm_db = @db.execute("SELECT * FROM #{@dataset} #{filter}").first
@@ -191,14 +200,14 @@ class VirtualMachineDB
 
     private
 
-    def sync_status
+    def sync_status(host, host_id)
         time = Time.now.to_i
 
         @db.execute("DELETE FROM #{@dataset}")
 
         status_str = "SYNC_STATE=yes\nMISSING_STATE=#{@conf[:missing_state]}\n"
 
-        DomainList.state_info.each do |uuid, vm|
+        DomainList.state_info(host, host_id).each do |uuid, vm|
             @db.execute(
                 "INSERT INTO #{@dataset} VALUES (?, ?, ?, ?, ?, ?, ?)",
                 [uuid,
@@ -232,7 +241,7 @@ class VirtualMachineDB
     end
 
     # Load configuration file and parse user provided options
-    def self.load_conf(hyperv, opts)
+    def self.load_conf(hyperv, host_id, opts)
         conf_path = "#{__dir__}/../../etc/im/#{hyperv}-probes.d/probe_db.conf"
         etc_conf  = YAML.load_file(conf_path) rescue nil
 
@@ -243,6 +252,8 @@ class VirtualMachineDB
         conf.merge! opts
 
         conf[:hyperv] = hyperv
+        conf[:db_path] = File.join(conf[:base_path],
+                                   "status_#{hyperv}_#{host_id}.db")
         conf
     end
 

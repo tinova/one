@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -32,7 +32,8 @@ class FirecrackerConfiguration < Hash
         :gid => 9869,
         :shutdown_timeout => 10,
         :cgroup_location => '/sys/fs/cgroup',
-        :cgroup_delete_timeout => 10
+        :cgroup_delete_timeout => 10,
+        :numa_policy => 'random'
     }
 
     FIRECRACKERRC = '../../etc/vmm/firecracker/firecrackerrc'
@@ -111,6 +112,11 @@ class OpenNebulaVM
         fc['deployment-file']['network-interfaces'] = []
         fc['command-params'] = {}
 
+        # Set logger info
+        fc['deployment-file']['logger'] = {}
+        fc['deployment-file']['logger']['log_fifo'] = 'logs.fifo'
+        fc['deployment-file']['logger']['metrics_fifo'] = 'metrics.fifo'
+
         boot_source(fc['deployment-file']['boot-source'])
         drives(fc['deployment-file']['drives'])
         machine_config(fc['deployment-file']['machine-config'])
@@ -138,7 +144,8 @@ class OpenNebulaVM
 
         hash['vcpu_count'] = Integer(vcpu)
 
-        hash['ht_enabled'] = false
+        ht = @xml['//TEMPLATE/TOPOLOGY/THREADS']
+        hash['ht_enabled'] = !(ht.nil? || ht.empty? || Integer(ht.to_s) <= 1)
     end
 
     def command_params(hash)
@@ -252,9 +259,23 @@ class OpenNebulaVM
 
         nodes = nodes.split("\n")
 
+        case @fcrc[:numa_policy].downcase
+        when 'rr'
+            rr_policy(nodes)
+        when 'random'
+            random_policy(nodes)
+        else
+            random_policy(nodes)
+        end
+    end
+
+    def rr_policy(nodes)
         Integer(nodes[@vm_id % nodes.size].gsub('node', ''))
     end
 
+    def random_policy(nodes)
+        Integer(nodes.sample.gsub('node', ''))
+    end
     #---------------------------------------------------------------------------
     # Container Mapping: Extra Configuration & Profiles
     #---------------------------------------------------------------------------

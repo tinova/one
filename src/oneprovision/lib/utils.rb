@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -219,35 +219,57 @@ module OneProvision
                     Utils.fail("Failed to read template: #{e}")
                 end
 
-                return yaml unless yaml['extends']
+                if yaml['extends']
+                    yaml['extends'] = [yaml['extends']].flatten
 
-                base = read_config(yaml['extends'])
+                    yaml['extends'].reverse.each do |f|
+                        base = read_config(f)
 
-                yaml.delete('extends')
-                base['defaults'] ||= {}
-                yaml['defaults'] ||= {}
+                        yaml.delete('extends')
+                        base['defaults'] ||= {}
+                        yaml['defaults'] ||= {}
 
-                # replace scalars or append array from child YAML
-                yaml.each do |key, value|
-                    next if key == 'defaults'
+                        if base['playbook']
+                            playbooks = []
 
-                    if (value.is_a? Array) && (base[key].is_a? Array)
-                        base[key].concat(value)
-                    else
-                        base[key] = value
+                            playbooks << base['playbook']
+                            playbooks << yaml['playbook'] if yaml['playbook']
+
+                            playbooks.flatten!
+
+                            yaml['playbook'] = playbooks
+
+                            base.delete('playbook')
+                        end
+
+                        yaml['playbook'] = [yaml['playbook']]
+                        yaml['playbook'].flatten!
+
+                        # replace scalars or append array from child YAML
+                        yaml.each do |key, value|
+                            next if key == 'defaults'
+
+                            if (value.is_a? Array) && (base[key].is_a? Array)
+                                base[key].concat(value)
+                            else
+                                base[key] = value
+                            end
+                        end
+
+                        # merge each defaults section separately
+                        %w[connection provision configuration].each do |section|
+                            base['defaults'][section] ||= {}
+                            yaml['defaults'][section] ||= {}
+                            defaults = yaml['defaults'][section]
+
+                            base['defaults'][section].merge!(defaults)
+                        end
+
+                        yaml = base
                     end
                 end
 
-                # merge each defaults section separately
-                %w[connection provision configuration].each do |section|
-                    base['defaults'][section] ||= {}
-                    yaml['defaults'][section] ||= {}
-                    defaults = yaml['defaults'][section]
-
-                    base['defaults'][section].merge!(defaults)
-                end
-
-                base
+                yaml
             end
 
             # Gets the value of an ERB expression
@@ -257,10 +279,18 @@ module OneProvision
             #
             # @return          [String]         Evaluated value
             def get_erb_value(provision, value)
+                unless value.match(/@./)
+                    raise OneProvisionLoopException,
+                          "value #{value} not allowed"
+                end
+
                 template = ERB.new value
                 ret = template.result(provision._binding)
 
-                raise "#{value} not found." if ret.empty?
+                if ret.empty?
+                    raise OneProvisionLoopException,
+                          "#{value} not found."
+                end
 
                 ret
             end

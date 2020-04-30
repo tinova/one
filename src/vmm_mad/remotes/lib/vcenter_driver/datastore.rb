@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -43,14 +43,7 @@ class DatastoreFolder
                 @items[item_name.to_sym] = Datastore.new(item)
             end
         end
-    end
-
-    def monitor
-        monitor = ''
-        @items.values.each do |ds|
-            monitor << "VCENTER_DS_REF=\"#{ds['_ref']}\"\n"
-        end
-        monitor
+        @items
     end
 
     ########################################################################

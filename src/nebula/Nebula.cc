@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -19,6 +19,7 @@
 #include "VirtualMachine.h"
 #include "SqliteDB.h"
 #include "MySqlDB.h"
+#include "PostgreSqlDB.h"
 #include "Client.h"
 #include "LogDB.h"
 #include "SystemDB.h"
@@ -66,6 +67,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <sys/stat.h>
 #include <pthread.h>
 
@@ -129,19 +132,11 @@ void Nebula::start(bool bootstrap_only)
     int      fd;
     sigset_t mask;
     int      signal;
-    char     hn[80];
     string   scripts_remote_dir;
     SqlDB *  db_backend;
     bool     solo;
 
     SqlDB *  db_ptr;
-
-    if ( gethostname(hn,79) != 0 )
-    {
-        throw runtime_error("Error getting hostname");
-    }
-
-    hostname = hn;
 
     // -----------------------------------------------------------
     // Configuration
@@ -166,6 +161,44 @@ void Nebula::start(bool bootstrap_only)
     }
 
     nebula_configuration->get("SCRIPTS_REMOTE_DIR", scripts_remote_dir);
+
+    // -----------------------------------------------------------
+    // Get Hostname
+    // -----------------------------------------------------------
+    nebula_configuration->get("HOSTNAME", hostname);
+
+    if ( hostname.empty() )
+    {
+        char   hn[1024];
+        struct addrinfo hints = {}, *addrs;
+
+        hints.ai_family   = AF_UNSPEC;
+        hints.ai_flags    = AI_CANONNAME;
+
+        rc = gethostname(hn, 1023);
+
+        if ( rc != 0 )
+        {
+            throw runtime_error("Error getting hostname" +
+                    std::string(strerror(rc)));
+        }
+
+        rc = getaddrinfo(hn, nullptr, &hints, &addrs);
+
+        if ( rc != 0 )
+        {
+            throw runtime_error("Error getting hostname: " +
+                    std::string(gai_strerror(rc)));
+        }
+
+        if ( addrs != nullptr && addrs->ai_canonname != nullptr )
+        {
+            hostname = addrs->ai_canonname;
+        }
+
+        freeaddrinfo(addrs);
+    }
+
     // -----------------------------------------------------------
     // Log system
     // -----------------------------------------------------------
@@ -226,6 +259,8 @@ void Nebula::start(bool bootstrap_only)
     {
         throw;
     }
+
+    NebulaLog::log("ONE", Log::INFO, "Using hostname: " + hostname);
 
     // -----------------------------------------------------------
     // Load the OpenNebula master key and keep it in memory
@@ -388,7 +423,7 @@ void Nebula::start(bool bootstrap_only)
 
             if (_db->vector_value("CONNECTIONS", connections) == -1)
             {
-                connections = 50;
+                connections = 25;
             }
 
             if (_db->vector_value("ENCODING", encoding) == -1)
@@ -401,10 +436,19 @@ void Nebula::start(bool bootstrap_only)
         {
             db_backend = new SqliteDB(var_location + "one.db");
         }
-        else
+        else if ( db_backend_type == "mysql" )
         {
             db_backend = new MySqlDB(server, port, user, passwd, db_name,
                     encoding, connections);
+        }
+        else if ( db_backend_type == "postgresql" )
+        {
+            db_backend = new PostgreSqlDB(server, port, user, passwd, db_name,
+                    connections);
+        }
+        else
+        {
+            throw runtime_error("DB BACKEND must be one of sqlite, mysql or postgresql.");
         }
 
         // ---------------------------------------------------------------------
@@ -924,12 +968,9 @@ void Nebula::start(bool bootstrap_only)
     {
         vector<const VectorAttribute *> im_mads;
 
-        int host_limit;
-
-        nebula_configuration->get("HOST_PER_INTERVAL", host_limit);
         nebula_configuration->get("IM_MAD", im_mads);
 
-        im = new InformationManager(hpool, vmpool, timer_period, mad_location);
+        im = new InformationManager(hpool, vmpool, mad_location);
 
         if (im->load_drivers(im_mads) != 0)
         {

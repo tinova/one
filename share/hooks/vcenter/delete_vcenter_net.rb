@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -32,6 +32,7 @@ end
 
 if File.directory?(GEMS_LOCATION)
     Gem.use_paths(GEMS_LOCATION)
+    $LOAD_PATH.reject! {|l| l =~ /(vendor|site)_ruby/ }
 end
 
 $LOAD_PATH << RUBY_LIB_LOCATION
@@ -92,7 +93,7 @@ begin
     raise 'Missing VCENTER_ONE_HOST_ID' unless host_id
 
     network_id = template['ID']
-    pg_name = template['TEMPLATE/BRIDGE']
+    pg_name = template['NAME']
     pg_type = template['TEMPLATE/VCENTER_PORTGROUP_TYPE']
     sw_name = template['TEMPLATE/VCENTER_SWITCH_NAME']
 

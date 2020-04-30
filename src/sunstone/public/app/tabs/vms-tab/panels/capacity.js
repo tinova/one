@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -112,38 +112,26 @@ define(function(require) {
       data: {
         id: that.element.ID,
         monitor: {
-          monitor_resources : "MONITORING/CPU,TEMPLATE/CPU,MONITORING/MEMORY,TEMPLATE/MEMORY"
+          monitor_resources : "CPU,MEMORY"
         }
       },
       success: function(req, response) {
         var vmGraphs = [
           {
-            monitor_resources : "TEMPLATE/CPU,MONITORING/CPU",
-            labels : Locale.tr("Allocated") + "," + Locale.tr("Real"),
+            monitor_resources : "CPU",
+            labels : Locale.tr("CPU usage"),
             humanize_figures : false,
             div_graph : $(".vm_cpu_graph", context),
             div_legend : $(".vm_cpu_legend", context)
           },
           {
-            monitor_resources : "TEMPLATE/MEMORY,MONITORING/MEMORY",
-            labels : Locale.tr("Allocated") + "," + Locale.tr("Real"),
+            monitor_resources : "MEMORY",
+            labels : ("Memory usage"),
             humanize_figures : true,
             div_graph : $(".vm_memory_graph", context),
             div_legend : $(".vm_memory_legend", context)
           }
         ];
-
-        if(response.monitoring["TEMPLATE/CPU"] != undefined){
-          response.monitoring["TEMPLATE/CPU"].map(function(e){
-            e[1] = e[1] * 100;
-          });
-        }
-
-        if(response.monitoring["TEMPLATE/MEMORY"] != undefined){
-          response.monitoring["TEMPLATE/MEMORY"].map(function(e){
-            e[1] = e[1] * 1024;
-          });
-        }
 
         for (var i = 0; i < vmGraphs.length; i++) {
           Graphs.plot(response, vmGraphs[i]);

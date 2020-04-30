@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -675,14 +675,6 @@ void TransferManager::prolog_action(int vid)
 
         if ( update )
         {
-            vm->unlock();
-
-            vm = vmpool->get(vid);
-            if (vm == nullptr)
-            {
-                goto error_attributes;
-            }
-
             vmpool->update(vm);
         }
     }

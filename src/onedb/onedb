@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -44,8 +44,11 @@ else
     LOCK_FILE         = VAR_LOCATION + '/.lock'
 end
 
+ONED_CONF = "#{ETC_LOCATION}/oned.conf"
+
 if File.directory?(GEMS_LOCATION)
     Gem.use_paths(GEMS_LOCATION)
+    $LOAD_PATH.reject! {|l| l =~ /(vendor|site)_ruby/ }
 end
 
 $LOAD_PATH << RUBY_LIB_LOCATION
@@ -101,16 +104,27 @@ SQLITE={
 }
 
 ###############################################################################
-# MySQL options
+# MySQL and PostgreSQL options
 ###############################################################################
+TYPE={
+    :name => 'type',
+    :short => '-t type',
+    :large => '--type type',
+    :format => String,
+    :description => 'Backend type.',
+    :proc => lambda {|o, options|
+        options[:backend] = o.to_sym
+    }
+}
+
 SERVER={
     :name => 'server',
     :short => '-S host',
     :large => '--server host',
     :format => String,
-    :description => 'MySQL server hostname or IP. Defaults to localhost',
+    :description => 'MySQL or PostgreSQL server hostname or IP. ' \
+                    'Defaults to localhost',
     :proc => lambda {|o, options|
-        options[:backend] = :mysql
         options[:server]  = o
     }
 }
@@ -120,9 +134,9 @@ PORT={
     :short => '-P port',
     :large => '--port port',
     :format => String,
-    :description => 'MySQL server port. Defaults to 3306',
+    :description => 'MySQL or PostgreSQL server port. Defaults to ' \
+                    '3306 for MySQL and 5432 for PostgreSQL',
     :proc => lambda {|o, options|
-        options[:backend] = :mysql
         options[:port] = o
     }
 }
@@ -132,9 +146,8 @@ USERNAME={
     :short => '-u user',
     :large => '--username user',
     :format => String,
-    :description => 'MySQL username',
+    :description => 'MySQL or PostgreSQL username',
     :proc => lambda {|o, options|
-        options[:backend] = :mysql
         options[:user]    = o
     }
 }
@@ -144,9 +157,9 @@ PASSWORD={
     :short => '-p pass',
     :large => '--password pass',
     :format => String,
-    :description => 'MySQL password. Leave unset to be prompted for it',
+    :description => 'MySQL or PostgreSQL password. Leave unset ' \
+                    'to be prompted for it',
     :proc => lambda {|o, options|
-        options[:backend] = :mysql
         options[:passwd]  = o
     }
 }
@@ -156,9 +169,8 @@ DBNAME={
     :short => '-d dbname',
     :large => '--dbname dbname',
     :format => String,
-    :description => 'MySQL DB name for OpenNebula',
+    :description => 'MySQL or PostgreSQL DB name for OpenNebula',
     :proc => lambda {|o, options|
-        options[:backend] = :mysql
         options[:db_name] = o
     }
 }
@@ -167,9 +179,8 @@ ENCODING={
     :name => 'encoding',
     :large => '--encoding charset',
     :format => String,
-    :description => 'MySQL encoding to use for the connection',
+    :description => 'MySQL or PostgreSQL encoding to use for the connection',
     :proc => lambda {|o, options|
-        options[:backend]  = :mysql
         options[:encoding] = o
     }
 }
@@ -332,7 +343,14 @@ CommandParser::CmdParser.new(ARGV) do
     # Global options
     ###########################################################################
     set :option, CommandParser::OPTIONS
-    set :option, [SQLITE, SERVER, PORT, USERNAME, PASSWORD, DBNAME, ENCODING]
+    set :option, [SQLITE,
+                  TYPE,
+                  SERVER,
+                  PORT,
+                  USERNAME,
+                  PASSWORD,
+                  DBNAME,
+                  ENCODING]
 
     ###########################################################################
     # Backup
@@ -487,7 +505,7 @@ CommandParser::CmdParser.new(ARGV) do
             mysql = OneDB.new(options)
 
             mysql.sqlite2mysql(options, sqlite)
-        rescue StdandardError => e
+        rescue StandardError => e
             [-1, e.message]
         end
     end

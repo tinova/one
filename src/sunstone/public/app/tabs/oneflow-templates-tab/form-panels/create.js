@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -99,18 +99,19 @@ define(function(require) {
 
   function _setup(context) {
     this.networksType = [
-      //Template id the una VN Template
-      {value: 'template_id', text: 'Create', select: 'vntemplates', extra: true },
-      //ID de una vnet que ya existe para reservar de ella
-      {value: 'reserve_from', text: 'Reserve', select: 'networks', extra: true },
-      //ID de una vnet que ya existe para usarla directamente
-      {value: 'id', text: 'Existing', select: 'networks', extra: false },
+      { value: 'template_id', text: 'Create', select: 'vntemplates', extra: true },
+      { value: 'reserve_from', text: 'Reserve', select: 'networks', extra: true },
+      { value: 'id', text: 'Existing', select: 'networks', extra: false },
     ]
     this.roleTabObjects = {};
+    this.numberOfNetworks = 0;
     var that = this;
 
+    $(".add_service_network", context).unbind("click");
     $(".add_service_network", context).bind("click", function() {
-      var nic_index = $(".service_network_name", context).length;
+      var nic_index = that.numberOfNetworks;
+      that.numberOfNetworks++;
+
 
       $(".service_networks tbody").append(
         '<tr id="network'+nic_index+'">\
@@ -120,16 +121,14 @@ define(function(require) {
             <label class="switch-paddle" for="service_network_mandatory'+nic_index+'" style="cursor: pointer;"></label>\
           </td>\
           <td>\
-            <input class="service_network_name" type="text" />\
+            <input class="service_network_name" type="text" data-index="'+nic_index+'" required />\
             <small class="form-error"><br/>'+Locale.tr("Can only contain alphanumeric and underscore characters, and be unique")+'</small>\
           </td>\
           <td>\
             <textarea class="service_network_description" />\
           </td>\
           <td>\
-            <select class="service_network_type">\
-              <option value=" "></option>\
-            </select>\
+            <select class="service_network_type" required></select>\
           </td>\
           <td>\
             <select class="service_network_id">\
@@ -147,56 +146,61 @@ define(function(require) {
         that.networksType.map(function(type) {
           $(".service_network_type", "tr#network"+nic_index).append($("<option/>", {
             "value": type.value
-          }).text(type.text))
-        })
-    });
+          }).text(type.text));
+        });
 
-    //$(".add_service_network", context).click();
+        $(".service_network_name", "tr#network"+nic_index).unbind("keyup");
+        $(".service_network_name", "tr#network"+nic_index).bind("keyup", function(){
+          // update pattern regex
+          var otherNames = $("input.service_network_name").not($(this)).map(function() {
+            return $(this).val();
+          }).get().join("|");
+    
+          $(this).attr("pattern", "^(?!(" + otherNames + ")$)(^\\w+$)");
+    
+          _redo_service_networks_selector(context, that);
+        });
 
-    context.on("keyup", ".service_network_name", function(){
-      // update pattern regex
-      var otherNames = $("input.service_network_name").not($(this)).map(function() {
-        return $(this).val();
-      }).get().join("|");
+        $(".service_network_type", "tr#network"+nic_index).unbind("change");
+        $(".service_network_type", "tr#network"+nic_index).bind("change", function(){
+          var selectedType = $(this).val()
+          var serviceNetwork = $(this).closest('tr')
 
-      $(this).attr("pattern", "^(?!(" + otherNames + ")$)(^\\w+$)");
+          var data = _get_networks()
 
-      _redo_service_networks_selector(context, that);
-    });
+          // 1. if val = reserve/existing or create
+          $(".service_network_id", serviceNetwork).empty().append($("<option/>").text(""))
+          
+          // 2. create and fill selector
+          var type = that.networksType.find(function(type) { return type.value === selectedType })
+          
+          // 3. append selector after type
+          type && data[type.select].map(function(net) {
+            $(".service_network_id", serviceNetwork).append($("<option/>", {
+              "value": net.ID
+            }).text(net.NAME))
+          })
+          
+          // 4. append extra after selector if reserve/create
+          var disabled = type ? !type.extra : true;
+          !disabled && $(".service_network_extra", serviceNetwork).empty(); 
+          $(".service_network_extra", serviceNetwork).prop('disabled', disabled);
+        });
 
-    context.on("change", ".service_network_type", function(){
-      var selectedType = $(this).val()
-      var serviceNetwork = $(this).closest('tr')
+        $("i.remove-tab", "tr#network"+nic_index).unbind("click");
+        $("i.remove-tab", "tr#network"+nic_index).bind("click", function(){
+          var tr = $(this).closest('tr');
+          tr.remove();
+    
+          _redo_service_networks_selector(context, that, $(this).data("index"));
+        });
 
-      var data = _get_networks()
-
-      // 1. if val = reserve/existing or create
-      $(".service_network_id", serviceNetwork).empty().append($("<option/>").text(""))
-      
-      // 2. create and fill selector
-      var type = that.networksType.find(function(type) { return type.value === selectedType })
-      
-      // 3. append selector after type
-      type && data[type.select].map(function(net) {
-        $(".service_network_id", serviceNetwork).append($("<option/>", {
-          "value": net.ID
-        }).text(net.NAME))
-      })
-      
-      // 4. append extra after selector if reserve/create
-      var disabled = type ? !type.extra : true;
-      !disabled && $(".service_network_extra", serviceNetwork).empty(); 
-      $(".service_network_extra", serviceNetwork).prop('disabled', disabled);
-    });
-
-    context.on("click", ".service_networks i.remove-tab", function(){
-      var tr = $(this).closest('tr');
-      tr.remove();
-
-      _redo_service_networks_selector(context, that, $(this).data("index"));
+        // trigger network type to load network options
+        $(".service_network_type", "tr#network"+nic_index).val(that.networksType[0].value).change();
     });
 
     that.roles_index = 0;
+    //$("#tf_btn_roles", context).unbind("click");
     $("#tf_btn_roles", context).bind("click", function(){
       that.addRoleTab(that.roles_index, context);
       that.roles_index++;
@@ -206,6 +210,7 @@ define(function(require) {
     // Each time a tab is clicked the table is filled with existing tabs (roles)
     // Selected roles are kept
     // TODO If the name of a role is changed and is selected, selection will be lost
+    $("#roles_tabs", context).off("click", "a");
     $("#roles_tabs", context).on("click", "a", function() {
       var tab_id = "#"+this.id+"Tab";
       var str = "";
@@ -217,7 +222,7 @@ define(function(require) {
         if ($(this).val() && ($(this).val() != $(tab_id+" #role_name", context).val())) {
           parent_role_available = true;
           str += "<tr>\
-            <td style='width:10%'>\
+            <td style='width:20px;text-align:center;'>\
               <input class='check_item' type='checkbox' value='"+$(this).val()+"' id='"+$(this).val()+"'/>\
             </td>\
             <td>"+$(this).val()+"</td>\
@@ -243,8 +248,6 @@ define(function(require) {
 
     Foundation.reflow(context, 'tabs');
 
-    // Add first role
-    $("#tf_btn_roles", context).click();
     Tips.setup(context);
     UserInputs.setup(context);
     return false;
@@ -352,6 +355,11 @@ define(function(require) {
       var role_id = $(this).attr("role_id");
       that.roleTabObjects[role_id].onShow();
     });
+
+    // Remove role tabs
+    $("#roles_tabs i.remove-tab", context).trigger("click");
+    // Add first role
+    $("#tf_btn_roles", context).click();
   }
 
   function _fill(context, element) {
@@ -415,6 +423,7 @@ define(function(require) {
       UserInputs.fill(context, {"USER_INPUTS": custom_attrs});
     }
 
+    // Remove role tabs
     $("#roles_tabs i.remove-tab", context).trigger("click");
 
     var network_names = [];
@@ -437,6 +446,8 @@ define(function(require) {
       that.roleTabObjects[role_id].fill(role_context, value, network_names);
     });
 
+    //_redo_service_networks_selector(context, that);
+
     $.each(element.TEMPLATE.BODY.roles, function(index, value){
         var role_context = $('.role_content', context)[index];
         var str = "";
@@ -444,7 +455,7 @@ define(function(require) {
         $.each(roles_names, function(){
           if (this != value.name) {
             str += "<tr>\
-              <td style='width:10%'>\
+              <td style='width:20px;'>\
                 <input class='check_item' type='checkbox' value='"+this+"' id='"+this+"'/>\
               </td>\
               <td>"+this+"</td>\
@@ -473,32 +484,62 @@ define(function(require) {
   function _redo_service_networks_selector_role(dialog, role_section, template, nicToDelete){
     var checked_networks = [];
     $(".service_network_checkbox:checked", role_section).each(function(){
-      checked_networks.push($(this).data("index"))
+      var netIndex = $(this).data("index");
+      var netName = $(this).val();
+      checked_networks[netIndex] = { name: netName };
+    });
+
+    $(".alias_network_checkbox:checked", role_section).each(function(){
+      var netIndex = $(this).data("index");
+      if (checked_networks[netIndex]) {
+        checked_networks[netIndex]["alias"] = true;
+      }
     });
 
     var role_tab_id = $(role_section).attr('id');
-
     var str = "";
-    $(".service_networks .service_network_name", dialog).each(function(index, _){
+    $(".service_networks .service_network_name", dialog).each(function(){
+      var index = $(this).data('index');
       var name = $(this).val();
       var regexp = new RegExp($(this).attr("pattern"), "gi");
-      var wasChecked = checked_networks.includes(index) ? 'checked="checked"' : '';
+
+      var checked = checked_networks[index];
+      var wasChecked = checked ? 'checked="checked"' : '';
+      var wasAlias = checked && checked["alias"] ? 'checked="checked"' : '';
+      var canBeAlias = !checked ? 'disabled="disabled"' : '';
 
       // Condition 1: Be unique
       // Condition 2: Can only contain alphanumeric and underscore characters
       if (name && name !== "" && regexp.test(name)) {
         var idNetwork = role_tab_id + "_" + index;
         var idName = idNetwork + "_name";
+        checked && (checked["name"] = name);
 
         str += "<tr id='"+idNetwork+"'>\
-            <td style='width:10%'>\
-              <input class='service_network_checkbox check_item'\
-                type='checkbox' value='"+name+"' id='"+idName+"' data-index='"+index+"' "+wasChecked+" />\
-            </td>\
-            <td>\
-              <label for='"+idName+"'>"+name+"</label>\
-            </td>\
-          </tr>";
+          <td style='width:20px;text-align:center;vertical-align:middle;'>\
+            <input class='service_network_checkbox check_item'\
+              type='checkbox' value='"+name+"' id='"+idName+"' data-index='"+index+"' "+wasChecked+" />\
+          </td>\
+          <td style='vertical-align:middle;'>\
+            <label for='"+idName+"'>"+name+"</label>\
+          </td>";
+
+        str += "<td style='width:20px;text-align:center;vertical-align:middle;'>\
+            <input class='alias_network_checkbox check_item' "+canBeAlias+"\
+              type='checkbox' value='"+name+"' id='alias_"+idName+"' data-index='"+index+"' "+wasAlias+" />\
+          </td>\
+          <td style='width:100px;vertical-align:middle;'>\
+            <label for='alias_"+idName+"'>As nic alias</label>\
+          </td>";
+
+          str += "<td class='parent_selector' style='width:50%;'>\
+            <select class='form-control' " + (!wasAlias ? "hidden" : "required") + "\
+              id='parent_"+idName+"' data-index='"+index+"' style='box-sizing:border-box;'>\
+                <option value=''></option>\
+            </select>\
+          </td>";
+
+        str += "</tr>";
       }
     });
 
@@ -510,7 +551,7 @@ define(function(require) {
 
     if (template && template.roleTabObjects) {
       $(Object.values(template.roleTabObjects)).each(function() {
-        this.refresh(nicToDelete);
+        this.refresh(checked_networks, nicToDelete);
       });
     }
   }
@@ -558,6 +599,7 @@ define(function(require) {
         $('a', ul.children('li').last()).click();
       }
       delete that.roleTabObjects[role_id];
+      _redo_service_networks_selector(dialog, that);
       return false;
     });
     role_tab.setup(role_section);
@@ -566,8 +608,17 @@ define(function(require) {
 
   function _get_networks() {
     var networks = OpenNebulaAction.cache("VNET");
+    if (networks === undefined) {
+      Sunstone.runAction("Network.list");
+      networks = OpenNebulaAction.cache("VNET");
+    }
     networks = networks ? networks.data : [];
+    
     var vntemplates = OpenNebulaAction.cache("VNTEMPLATE");
+    if (vntemplates === undefined) {
+      Sunstone.runAction("VNTemplate.list");
+      vntemplates = OpenNebulaAction.cache("VNTEMPLATE");
+    }
     vntemplates = vntemplates ? vntemplates.data : [];
 
     // Get networks list

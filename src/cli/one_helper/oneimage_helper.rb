@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -82,7 +82,7 @@ class OneImageHelper < OpenNebulaHelper::OneHelper
             :description => 'Path of the image file',
             :format => String,
             :proc => lambda do |o, _options|
-                next [0, o] if o.match(%r{^https?://})
+                next [0, o] if o.match(%r{^(https?|docker)://})
 
                 if o[0, 1]=='/'
                     path=o

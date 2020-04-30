@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -171,7 +171,7 @@ int HostPool::dump_monitoring(
 
     cmd << "SELECT " << one_db::host_monitor_table << ".body FROM "
         << one_db::host_monitor_table << " INNER JOIN " << one_db::host_table
-        << " WHERE hid = oid";
+        << " ON hid = oid";
 
     if ( !where.empty() )
     {

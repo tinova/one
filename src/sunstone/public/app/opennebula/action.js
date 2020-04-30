@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -336,6 +336,34 @@ define(function(require) {
       var action_obj = {"level": level};
 
       _simple_action(params, resource, "lock", action_obj, path);
+    },
+
+    "addFlowAction": function(params, resource) {
+      var callback = params && params.success;
+      var callbackError = params && params.error;
+      var id = params && params.data && params.data.id;
+      var roleName = params && params.data && params.data.roleName
+      var action = params && params.data && params.data.action
+      var cacheName = params.cacheName ? params.cacheName : resource;
+      if(id!==undefined && action && resource){
+        $.ajax({
+          url: roleName?
+            resource.toLowerCase()+"/"+id+"/role/"+roleName+"/action"
+          :
+            resource.toLowerCase()+"/"+id+"/action",
+          type: "POST",
+          dataType: "text",
+          contentType: "application/json; charset=utf-8",
+          data: JSON.stringify({"action": action}),
+          success: function(response) {
+            _clearCache(cacheName);
+            return callback ? callback(response) : null;
+          },
+          error: function(response) {
+            return callbackError ? callbackError(OpenNebulaError(response)) : null;
+          }
+        });
+      }
     },
 
     "chgrp": function(params, resource, path) {

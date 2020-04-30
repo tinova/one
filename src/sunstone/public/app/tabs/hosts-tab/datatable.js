@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -166,9 +166,6 @@ define(function(require) {
     this.allocatedMemory += parseInt((element && element.HOST_SHARE && element.HOST_SHARE.MEM_USAGE)||0);
     this.realMemory += parseInt((element && element.MONITORING && element.MONITORING.CAPACITY && element.MONITORING.CAPACITY.USED_MEMORY)||0);//MONITORING.CAPACITY.USED_MEMORY
 
-
-    console.log("-->",element);
-
     var state = OpenNebulaHost.simpleStateStr(element.STATE);
 
     var search = {
@@ -320,6 +317,9 @@ define(function(require) {
   }
 
   function quotaDashboard(html_tag, legend, font_large_size, font_small_size, quota) {
+    var min = SunstoneConfig.thresholds.min;
+    var low = SunstoneConfig.thresholds.low;
+    var high = SunstoneConfig.thresholds.high;
     return "<div class=\"row\">" +
           "<div class=\"large-12 columns\">" +
             "<span>" + legend + "</span>" +
@@ -327,7 +327,7 @@ define(function(require) {
         "</div>" +
         "<div class=\"row\">" +
           "<div class=\"large-12 columns\">" +
-            "  <meter id=\"" + html_tag + "_meter\" min=\"0\" low=\"33\" high=\"66\" optimum=\"0\" max=\"100\" value=\"0\"></meter>" +
+            "  <meter id=\"" + html_tag + "_meter\" min=\""+ min +"\" low=\""+ low +"\" high=\""+ high +"\" optimum=\"0\" max=\"100\" value=\"0\"></meter>" +
           "</div>" +
         "</div>" +
         "<div class=\"row\">" +

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -28,6 +28,8 @@ fi
 
 ARGV=$*
 
+HID=$2
+
 STDIN=`cat -`
 
 # Directory that contains this file
@@ -40,18 +42,28 @@ BASENAME=$(basename $0 _control.sh)
 CLIENT=$DIR/${BASENAME}.rb
 
 # Collectd client PID
-CLIENT_PID_FILE=/tmp/one-monitord-client.pid
+CLIENT_PID_FILE=/tmp/one-monitord-$HID.pid
 
 # Launch the client
 function start_client() {
-    echo "$STDIN" | /usr/bin/env ruby $CLIENT $ARGV &
+    rm $CLIENT_PID_FILE >/dev/null 2>&1
 
-    echo $! > $CLIENT_PID_FILE
+    echo "$STDIN" | /usr/bin/env ruby $CLIENT $ARGV 2> /tmp/one-monitord-$HID.error &
+    CLIENT_PID=$!
+
+    sleep 1
+
+    if [ -z "$CLIENT_PID" ] || ! ps -p $CLIENT_PID > /dev/null; then
+        cat /tmp/one-monitord-$HID.error
+        exit 1
+   fi
+
+   echo $CLIENT_PID > $CLIENT_PID_FILE
 }
 
 # Stop the client
 function stop_client() {
-    local pids=$(ps axuww | grep /monitord-client.rb | grep -v grep | awk '{print $2}')
+    local pids=$(ps axuww | grep "$CLIENT $ARGV" | grep -v grep | awk '{print $2}')
 
     if [ -n "$pids" ]; then
         kill -9 $pids

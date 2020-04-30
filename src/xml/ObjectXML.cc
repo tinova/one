@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -116,6 +116,11 @@ void ObjectXML::xpaths(std::vector<std::string>& content, const char * expr)
             break;
 
         case XPATH_NODESET:
+            if (obj->nodesetval == 0)
+            {
+                return;
+            }
+
             for(int i = 0; i < obj->nodesetval->nodeNr ; ++i)
             {
                 cur = obj->nodesetval->nodeTab[i];

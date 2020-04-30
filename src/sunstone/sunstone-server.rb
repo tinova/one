@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -47,6 +47,7 @@ SUNSTONE_ROOT_DIR = File.dirname(__FILE__)
 
 if File.directory?(GEMS_LOCATION)
     Gem.use_paths(GEMS_LOCATION)
+    $LOAD_PATH.reject! {|l| l =~ /(vendor|site)_ruby/ }
 end
 
 $LOAD_PATH << RUBY_LIB_LOCATION
@@ -111,6 +112,13 @@ require 'CloudAuth'
 require 'SunstoneServer'
 require 'SunstoneViews'
 
+begin
+    require "SunstoneWebAuthn"
+    webauthn_avail = true
+rescue LoadError
+    webauthn_avail = false
+end
+
 ##############################################################################
 # Configuration
 ##############################################################################
@@ -127,6 +135,7 @@ if $conf[:one_xmlrpc_timeout]
 end
 
 $conf[:debug_level] ||= 3
+$conf[:webauthn_avail] = webauthn_avail
 
 # Set Sunstone Session Timeout
 $conf[:session_expire_time] ||= 3600
@@ -219,6 +228,17 @@ rescue StandardError => e
     exit -1
 end
 
+if $conf[:webauthn_avail]
+    begin
+        SunstoneWebAuthn.configure($conf)
+    rescue => e
+        logger.error {
+            "Error initializing WebAuthn" }
+        logger.error { e.message }
+        exit -1
+    end
+end
+
 #start VNC proxy
 
 $vnc = OpenNebulaVNC.new($conf, logger)
@@ -233,7 +253,6 @@ $addons = OpenNebulaAddons.new(logger)
 
 DEFAULT_TABLE_ORDER = "desc"
 DEFAULT_PAGE_LENGTH = 10
-DEFAULT_TWO_FACTOR_AUTH = false
 
 SUPPORT = {
     :zendesk_url => "https://opennebula.zendesk.com/api/v2",
@@ -241,17 +260,17 @@ SUPPORT = {
     :custom_field_severity => 391197,
     :author_id => 21231023,
     :author_name => "OpenNebula Support Team",
-    :support_subscription => "http://opennebula.systems/support/",
-    :account => "http://opennebula.systems/buy/",
-    :docs => "http://docs.opennebula.org/5.11/",
-    :community => "http://opennebula.org/support/community/",
+    :support_subscription => "https://opennebula.io/support/",
+    :account => "https://opennebula.io/buy-support",
+    :docs => "https://docs.opennebula.io/5.11/",
+    :community => "https://opennebula.io/usec",
     :project => "OpenNebula"
 }
 
 UPGRADE = {
     :upgrade => "<span style='color: #0098c3' id='itemUpdate' style='display:none;'>Upgrade Available</span>&nbsp;<span style='color:#DC7D24'><i class='fas fa-exclamation-circle'></i></span>",
     :no_upgrade => "",
-    :url => "http://opennebula.org/software/"
+    :url => "https://opennebula.io/use/"
 }
 
 ##############################################################################
@@ -344,21 +363,24 @@ helpers do
         end
 
         # two factor_auth
-        two_factor_auth =
-            if user[TWO_FACTOR_AUTH_SECRET_XPATH]
-                user[TWO_FACTOR_AUTH_SECRET_XPATH] != ""
-            else
-                DEFAULT_TWO_FACTOR_AUTH
-            end
-        if two_factor_auth
+        isHOTPConfigured = (user[TWO_FACTOR_AUTH_SECRET_XPATH] && user[TWO_FACTOR_AUTH_SECRET_XPATH] != "")
+        isWebAuthnConfigured = $conf[:webauthn_avail] && SunstoneWebAuthn.getCredentialIDsForUser(user.id).length > 0
+        if isHOTPConfigured || isWebAuthnConfigured
             two_factor_auth_token = params[:two_factor_auth_token]
             if !two_factor_auth_token || two_factor_auth_token == ""
-                return [202, { code: "two_factor_auth" }.to_json]
-            else
-                unless Sunstone2FAuth.authenticate(user[TWO_FACTOR_AUTH_SECRET_XPATH], two_factor_auth_token)
-                    logger.info { "Unauthorized two factor authentication login attempt" }
-                    return [401, ""]
-                end
+                return [202, { code: "two_factor_auth", uid: user.id }.to_json]
+            end
+            serverResponse =
+            isTwoFactorAuthSuccessful = false
+            if isHOTPConfigured && Sunstone2FAuth.authenticate(user[TWO_FACTOR_AUTH_SECRET_XPATH], two_factor_auth_token)
+                isTwoFactorAuthSuccessful = true
+            end
+            if isWebAuthnConfigured && SunstoneWebAuthn.authenticate(user.id, two_factor_auth_token)
+                isTwoFactorAuthSuccessful = true
+            end
+            if !isTwoFactorAuthSuccessful
+                logger.info { "Unauthorized two factor authentication login attempt" }
+                return [401, "Two factor authentication failed"]
             end
         end
 
@@ -473,7 +495,7 @@ before do
     @request_body = request.body.read
     request.body.rewind
 
-    unless %w(/ /login /vnc /spice /version).include?(request.path)
+    unless %w(/ /login /vnc /spice /version /webauthn_options_for_get).include?(request.path)
         halt [401, "csrftoken"] unless authorized? && valid_csrftoken?
     end
 
@@ -545,7 +567,7 @@ before do
 end
 
 after do
-    unless request.path=='/login' || request.path=='/' || request.path=='/'
+    unless request.path == '/login' || request.path == '/' || request.path == '/'
         # secure cookies
         if request.scheme == 'https'
             env['rack.session.options'][:secure] = true
@@ -610,6 +632,32 @@ get '/two_factor_auth_hotp_qr_code' do
     [200, qr_code.as_svg]
 end
 
+get '/webauthn_options_for_create' do
+    content_type 'application/json'
+    if !$conf[:webauthn_avail]
+        return [501, '']
+    end
+    options = SunstoneWebAuthn.getOptionsForCreate(session[:user_id], session[:user])
+    [200, options]
+end
+
+get '/webauthn_options_for_get' do
+    content_type 'application/json'
+    if !$conf[:webauthn_avail]
+        return [501, '']
+    end
+    begin
+        user_id = Integer(params[:uid]).to_s
+    rescue ArgumentError => e
+        return [401, '']
+    end
+    options = SunstoneWebAuthn.getOptionsForGet(user_id)
+    if options.nil?
+        return [204, '']
+    end
+    [200, options]
+end
+
 get '/vnc' do
     content_type 'text/html', :charset => 'utf-8'
     if !authorized?
@@ -637,16 +685,7 @@ end
 get '/version' do
     version = {}
 
-    if (remote_version_url = $conf[:remote_version])
-        begin
-            version = JSON.parse(Net::HTTP.get(URI(remote_version_url)))
-        rescue Exception
-        end
-    end
-
-    if !version["version"] || version["version"].empty?
-        version["version"] = OpenNebula::VERSION
-    end
+    version["version"] = OpenNebula::VERSION
 
     [200, version.to_json]
 end

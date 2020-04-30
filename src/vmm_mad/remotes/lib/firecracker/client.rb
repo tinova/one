@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -32,12 +32,13 @@ class FirecrackerClient
         'Accept' => 'application/json',
         'Content-Type' => 'application/json'
     }.freeze
-    API_RETRY = 5 # Attempts, in case a response is failed to read from LXD
+    API_RETRY = 5 # Attempts, in case a response is failed to read from FC
 
-    def initialize(socket_path)
+    def initialize(uuid)
+        path = "/srv/jailer/firecracker/#{uuid}/root/run/firecracker.socket"
         # rubocop:disable Style/RescueStandardError
         begin
-            @socket = socket(socket_path)
+            @socket = socket(path)
         rescue
             raise "Failed to open socket: #{socket_path}"
         end
@@ -78,19 +79,6 @@ class FirecrackerClient
     def patch(uri, data)
         get_response(Net::HTTP::Patch.new("#{API}/#{uri}", HEADER), data)
     end
-
-    # Waits for an operation returned in response to be completed
-    # def wait(response, timeout)
-    #    operation_id = response['operation'].split('/').last
-    #
-    #    timeout = "?timeout=#{timeout}" unless [nil, ''].include?(timeout)
-    #
-    #    response = get("operations/#{operation_id}/wait#{timeout}")
-    #
-    #    raise LXDError, response if response['metadata']['status'] == 'Failure'
-    #
-    #    response
-    # end
 
     private
 
@@ -142,7 +130,7 @@ class FirecrackerClient
 
 end
 
-# Error used for raising LXDClient exception when response is error return value
+# Error used for raising FC Client exception when response is error return value
 class FirecrackerError < StandardError
 
     attr_reader :body, :error, :code, :type

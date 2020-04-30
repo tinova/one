@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -115,6 +115,12 @@ define(function(require) {
 
     delete that.element.TEMPLATE.WILDS;
     delete that.element.TEMPLATE.VM;
+
+    // Perform search in wilds VM
+    $("#host_wilds_search").on('input', function() {
+      that.dataTableWildHosts.fnFilter($(this).val());
+      return false;
+    })
 
     // Enable the import button when at least a VM is selected
     $("#import_wilds", context).attr("disabled", "disabled").on("click.disable", function(e) { return false; });

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -36,8 +36,8 @@ int InformationManager::start()
     register_action(OpenNebulaMessages::HOST_STATE,
             bind(&InformationManager::_host_state, this, _1));
 
-    register_action(OpenNebulaMessages::SYSTEM_HOST,
-            bind(&InformationManager::_system_host, this, _1));
+    register_action(OpenNebulaMessages::HOST_SYSTEM,
+            bind(&InformationManager::_host_system, this, _1));
 
     register_action(OpenNebulaMessages::VM_STATE,
             bind(&InformationManager::_vm_state, this, _1));
@@ -55,7 +55,7 @@ int InformationManager::start()
     im_thread = std::thread([&] {
         NebulaLog::info("InM", "Information Manager started.");
 
-        am.loop(timer_period);
+        am.loop();
 
         NebulaLog::info("InM", "Information Manager stopped.");
     });
@@ -72,7 +72,8 @@ int InformationManager::start()
     }
 
     string xml_hosts;
-    hpool->dump(xml_hosts, "", "", false);
+
+    hpool->dump(xml_hosts, "", 0, -1, false);
 
     Message<OpenNebulaMessages> msg;
 
@@ -188,7 +189,8 @@ void InformationManager::delete_host(int hid)
 
 void InformationManager::_undefined(unique_ptr<Message<OpenNebulaMessages>> msg)
 {
-    NebulaLog::warn("InM", "Received undefined message: " + msg->payload());
+    NebulaLog::warn("InM", "Received undefined message: " + msg->payload() +
+            "from host: " + to_string(msg->oid()));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -196,7 +198,9 @@ void InformationManager::_undefined(unique_ptr<Message<OpenNebulaMessages>> msg)
 
 void InformationManager::_host_state(unique_ptr<Message<OpenNebulaMessages>> msg)
 {
-    NebulaLog::debug("InM", "Received host_state message: " + msg->payload());
+    NebulaLog::debug("InM", "HOST_STATE update from host: " +
+        to_string(msg->oid()) + ". Host information: " + msg->payload());
+
 
     string str_state = msg->payload();
     Host::HostState new_state;
@@ -244,10 +248,10 @@ void InformationManager::_host_state(unique_ptr<Message<OpenNebulaMessages>> msg
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-void InformationManager::_system_host(unique_ptr<Message<OpenNebulaMessages>> msg)
+void InformationManager::_host_system(unique_ptr<Message<OpenNebulaMessages>> msg)
 {
-    NebulaLog::ddebug("InM", "Received SYSTEM_HOST message id: " +
-            to_string(msg->oid()));
+    NebulaLog::debug("InM", "HOST_SYSTEM update from host: " +
+        to_string(msg->oid()) + ". Host information: " + msg->payload());
 
     char *   error_msg;
     Template tmpl;
@@ -290,14 +294,6 @@ void InformationManager::_system_host(unique_ptr<Message<OpenNebulaMessages>> ms
          to_string(host->get_oid()) + ") successfully monitored.");
 
     host->unlock();
-}
-
-/* -------------------------------------------------------------------------- */
-/* -------------------------------------------------------------------------- */
-
-void InformationManager::timer_action(const ActionRequest& ar)
-{
-
 }
 
 /* -------------------------------------------------------------------------- */
@@ -426,14 +422,22 @@ void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
 
         hv_ids.insert(id);
 
-        NebulaLog::debug("InM", "Received VM_STATE for VM id: " +
-            to_string(id) + ", state: " + state_str);
+        NebulaLog::debug("InM", "VM_STATE update from host: " +
+            to_string(msg->oid()) + ". VM id: " + to_string(id) + ", state: " +
+            state_str);
 
         auto* vm = vmpool->get(id);
 
         if (vm == nullptr)
         {
             NebulaLog::warn("InM", "Unable to find VM, id: " + to_string(id));
+            continue;
+        }
+
+        if (!vm->hasHistory() || vm->get_hid() != msg->oid())
+        {
+            //VM is not running in this host anymore, ignore
+            vm->unlock();
             continue;
         }
 
@@ -508,7 +512,7 @@ void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
             continue;
         }
 
-        if (!vm->hasHistory())
+        if (!vm->hasHistory() || (vm->get_hid() != msg->oid()))
         {
             vm->unlock();
             continue;
@@ -538,6 +542,10 @@ void InformationManager::_vm_state(unique_ptr<Message<OpenNebulaMessages>> msg)
         {
             action = LCMAction::MONITOR_POWEROFF;
         }
+
+        NebulaLog::debug("InM", "VM_STATE update from host: " +
+            to_string(msg->oid()) + ". VM id: " + to_string(vm->get_oid()) +
+            ", state: " + state_str);
 
         lcm->trigger(action, vm->get_oid());
 

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -657,6 +657,11 @@ int VirtualMachineXML::parse_action_name(string& action_st)
         && action_st != "poweroff"
         && action_st != "poweroff-hard"
         && action_st != "snapshot-create"
+        && action_st != "snapshot-revert"
+        && action_st != "snapshot-delete"
+        && action_st != "disk-snapshot-create"
+        && action_st != "disk-snapshot-revert"
+        && action_st != "disk-snapshot-delete"
 
         // Compatibility with 4.x
         && action_st != "shutdown"

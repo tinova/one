@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -278,6 +278,10 @@ define(function(require) {
     LCM_STATES.DISK_RESIZE
   ];
 
+  var RDP_STATES = [
+    LCM_STATES.RUNNING
+  ];
+
   var EXTERNAL_IP_ATTRS = [
     "GUEST_IP",
     "GUEST_IP_ADDRESSES",
@@ -504,8 +508,7 @@ define(function(require) {
       var resource = RESOURCE;
 
       var method = startstop;
-      var action = OpenNebulaHelper.action(method);
-      var request = OpenNebulaHelper.request(resource, method, id);
+      var request = OpenNebulaHelper.request(resource, method, params.data);
       $.ajax({
         url: "vm/" + id + "/startvnc",
         type: "POST",
@@ -674,6 +677,11 @@ define(function(require) {
     "isVNCSupported": isVNCSupported,
     "isRDPSupported": isRDPSupported,
     "isSPICESupported": isSPICESupported,
+    "isWFileSupported": isWFileSupported,
+    "buttonVnc": buttonVnc,
+    "buttonSpice": buttonSpice,
+    "buttonWFile": buttonWFile,
+    "buttonRDP": buttonRDP,
     "getName": function(id){
       return OpenNebulaAction.getName(id, RESOURCE);
     }
@@ -755,10 +763,10 @@ define(function(require) {
   // Return the IP or several IPs of a VM
   function ipsStr(element, divider) {
     var divider = divider || "<br>";
-    var nics = element.TEMPLATE.NIC;
-    var pci = element.TEMPLATE.PCI;
+    var nics = element && element.TEMPLATE && element.TEMPLATE.NIC;
+    var pci = element && element.TEMPLATE && element.TEMPLATE.PCI;
     var ips = [];
-    var monitoring = element.MONITORING;
+    var monitoring = element && element.MONITORING;
     if (monitoring) {
       var externalIP;
       $.each(EXTERNAL_IP_ATTRS, function(index, IPAttr) {
@@ -776,7 +784,7 @@ define(function(require) {
       });
     }
 
-    if (nics == undefined){
+    if (nics == undefined || nics == false){
       nics = [];
     }
 
@@ -784,7 +792,7 @@ define(function(require) {
       nics = [nics];
     }
 
-    if (pci != undefined) {
+    if (pci != undefined || pci != false) {
       if (!$.isArray(pci)) {
         pci = [pci];
       }
@@ -797,17 +805,19 @@ define(function(require) {
     }
     
     // infoextended: alias will be group by nic
-    return (config.system_config.get_extended_vm_info)
+    return (
+      config.system_config &&
+      config.system_config.get_extended_vm_info &&
+      config.system_config.get_extended_vm_info === "true"
+      )
       ? groupByIpsStr(element, nics)
-      : (ips.length == 0) 
-        ? $.each(nics, function(index, value) {
-          $.each(NIC_IP_ATTRS, function(j, attr){
-            if (value[attr] && attr === "IP") {
-              ips.push(value[attr]);
-            }
-          });
-        })
-        : (ips.length > 0) ? ips.join(divider) : r = "--";
+      : (ips.length == 0 && nics && nics.length > 0)
+        ? $.map(nics, function(nic) {
+          if (nic["IP"]) {
+            return nic["IP"];
+          }
+        }).join(divider)
+        : "--";
   };
 
   function groupByIpsStr(element = {}, nics = []) {
@@ -818,7 +828,9 @@ define(function(require) {
         nicSection.append("*");
 
         nic.ALIAS_IDS.split(",").forEach(function(aliasId) {
-          var alias = element.TEMPLATE.NIC_ALIAS.find(function(alias) { return alias.NIC_ID === aliasId })
+          var templateAlias = Array.isArray(element.TEMPLATE.NIC_ALIAS)
+            ? element.TEMPLATE.NIC_ALIAS : [element.TEMPLATE.NIC_ALIAS];
+          var alias = templateAlias.find(function(alias) { return alias.NIC_ID === aliasId });
           
           if (alias) {
             nicSection.append($("<p/>").css({
@@ -865,37 +877,109 @@ define(function(require) {
 
   // returns true if the vnc button should be enabled
   function isVNCSupported(element) {
-    var graphics = element.TEMPLATE.GRAPHICS;
-    var state = parseInt(element.LCM_STATE);
-
-    return (graphics &&
+    var rtn = false;
+    if(element && element.TEMPLATE && element.TEMPLATE.GRAPHICS && element.LCM_STATE){
+      var graphics = element.TEMPLATE.GRAPHICS;
+      var state = parseInt(element.LCM_STATE);
+      rtn = graphics &&
         graphics.TYPE &&
-        graphics.TYPE.toLowerCase() == "vnc"  &&
-        $.inArray(state, VNC_STATES) != -1);
+        graphics.TYPE.toLowerCase() == "vnc" &&
+        $.inArray(state, VNC_STATES) != -1;
+    }
+    return rtn;
   }
 
   function isSPICESupported(element) {
-    var graphics = element.TEMPLATE.GRAPHICS;
-    var state = parseInt(element.LCM_STATE);
-
-    return (graphics &&
+    var rtn = false;
+    if(element && element.TEMPLATE && element.TEMPLATE.GRAPHICS && element.LCM_STATE){
+      var graphics = element.TEMPLATE.GRAPHICS;
+      var state = parseInt(element.LCM_STATE);
+      rtn = graphics &&
         graphics.TYPE &&
         graphics.TYPE.toLowerCase() == "spice" &&
-        $.inArray(state, VNC_STATES) != -1);
+        $.inArray(state, VNC_STATES) != -1;
+    }
+    return rtn;
+  }
+
+  function isWFileSupported(element) {
+    // spice/vnc is assumed to be supported
+    var history = retrieveLastHistoryRecord(element);
+    return (history) 
+      ? {
+        hostname: history.HOSTNAME,
+        type: element.TEMPLATE.GRAPHICS.TYPE.toLowerCase(),
+        port: element.TEMPLATE.GRAPHICS.PORT || "5901"
+      }
+      : false;
   }
 
   // returns true if the RDP button should be enabled
   function isRDPSupported(element) {
-    var rtn = false;
-    if(element.TEMPLATE && element.TEMPLATE.NIC){
-      if(!Array.isArray(element.TEMPLATE.NIC)){
-        element.TEMPLATE.NIC = [element.TEMPLATE.NIC];
+    var hasRdp = false;
+
+    if (element.TEMPLATE && element.TEMPLATE.NIC && element.LCM_STATE) {
+      var template = element.TEMPLATE;
+      var state = parseInt(element.LCM_STATE);
+      
+      if ($.inArray(state, RDP_STATES) != -1) {
+        hasRdp = hasRDP(template.NIC);
+        
+        if (!hasRdp && template.NIC_ALIAS) {
+          hasRdp = hasRDP(template.NIC_ALIAS);
+        }
       }
-      element.TEMPLATE.NIC.some(function(nic) {
-        rtn = nic.RDP && nic.RDP == "YES"
-      })
     }
-    return rtn;
+
+    return hasRdp;
+  }
+
+  function hasRDP(nics) {
+    var activated = false;
+    nics = Array.isArray(nics) ? nics : [nics];
+
+    $.each(nics, function(_, nic) {
+      if (nic.RDP && String(nic.RDP).toLowerCase() === "yes") {
+        activated = nic;
+      }
+    });
+
+    return activated;
+  }
+
+  function buttonVnc(id = "") {
+    return '<button class="vnc remote_vm" data-id="' + id + '">\
+      <i class="fas fa-desktop"></i></button>';
+  }
+  
+  function buttonSpice(id = "") {
+    return '<button class="spice remote_vm" data-id="' + id + '">\
+      <i class="fas fa-desktop"></i></button>';
+  }
+
+  function buttonWFile(id = "", data = {}) {
+    return '<button class="w_file remote_vm" data-id="' + id + '"\
+    data-type="' + data.type + '" data-port="' + data.port + '" data-hostname="' + data.hostname + '">\
+      <i class="fas fa-external-link-alt"></i></button>';
+  }
+
+  function buttonRDP(ip = "", vm = {}) {
+    var username, password;
+
+    if (vm && vm.TEMPLATE && vm.TEMPLATE.CONTEXT) {
+      var context = vm.TEMPLATE.CONTEXT;
+      for (var prop in context) {
+        var propUpperCase = String(prop).toUpperCase();
+        (propUpperCase === "USERNAME") && (username = context[prop]);
+        (propUpperCase === "PASSWORD") && (password = context[prop]);
+      }
+    }
+    var button = '<button class="rdp remote_vm" data-name="' + vm.NAME + '" data-ip="' + ip + '"';
+    username && (button += ' data-username="' + username + '"');
+    password && (button += ' data-password="' + password + '"');
+    button += '><i class="fab fa-windows"></i></button>';
+
+    return button;
   }
 
   return VM;

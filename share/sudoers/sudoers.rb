@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -52,10 +52,9 @@ class Sudoers
                 'ip'
             ],
             :MARKET => %W[#{lib_location}/sh/create_container_image.sh],
-            :FC     => %w[/usr/bin/jailer
-                          mount
-                          /var/tmp/one/vmm/firecracker/map_context.sh
-                          /var/tmp/one/vmm/firecracker/clean.sh]
+            :FIRECRACKER => %w[/usr/bin/jailer
+                               mount
+                               /usr/sbin/one-clean-firecracker-domain]
         }
     end
 

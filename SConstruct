@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -152,6 +152,16 @@ if mysql == 'yes':
     main_env.Append(LIBS=['mysqlclient'])
 else:
     main_env.Append(mysql='no')
+
+# PostgreSql
+postgresql = ARGUMENTS.get('postgresql', 'no')
+if postgresql == 'yes':
+    main_env.Append(postgresql='yes')
+    main_env.Append(CPPPATH=['/usr/include/postgresql'])
+    main_env.Append(CPPFLAGS=["-DPOSTGRESQL_DB"])
+    main_env.Append(LIBS=['libpq'])
+else:
+    main_env.Append(postgresql='no')
 
 # Flag to compile with xmlrpc-c versions prior to 1.31 (September 2012)
 new_xmlrpc = ARGUMENTS.get('new_xmlrpc', 'no')

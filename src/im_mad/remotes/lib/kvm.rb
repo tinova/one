@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -122,7 +122,7 @@ module ProcessList
     #   param[Array] pids of the arrys to compute the CPU usage
     #   result[Array] array of cpu usage
     def self.cpu_info(pids)
-        multiplier = `nproc`.to_i * 100
+        multiplier = Integer(`grep -c processor /proc/cpuinfo`) * 100
 
         cpu_ini = {}
 
@@ -449,7 +449,7 @@ module DomainList
         domains.wilds_to_monitor
     end
 
-    def self.state_info
+    def self.state_info(host, host_id)
         domains = KVMDomains.new
 
         domains.state_info
@@ -501,10 +501,6 @@ module DomainList
             end
         end
 
-        # Get the list of VMs (known and not known to OpenNebula) and their info
-        # not including process usage.
-        #
-        #   @return [Hash] with KVM Domain classes indexed by their uuid
         def state_info
             info_each(false) do |name|
                 vm = Domain.new name

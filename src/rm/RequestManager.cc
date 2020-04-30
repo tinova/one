@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -184,7 +184,7 @@ extern "C" void * rm_xml_server_loop(void *arg)
     // -------------------------------------------------------------------------
     // Main connection loop
     // -------------------------------------------------------------------------
-    ConnectionManager *cm =new ConnectionManager(rm, rm->max_conn);
+    std::unique_ptr<ConnectionManager> cm{new ConnectionManager(rm, rm->max_conn)};
 
     while (true)
     {
@@ -205,12 +205,10 @@ extern "C" void * rm_xml_server_loop(void *arg)
 
         NebulaLog::log("ReM", Log::DDEBUG, oss);
 
-        Connection * rc = new Connection(client_fd, cm);
+        Connection * rc = new Connection(client_fd, cm.get());
 
         pthread_create(&thread_id, &pattr, rm_do_connection, (void *) rc);
     }
-
-    delete cm;
 
     return 0;
 }

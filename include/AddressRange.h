@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -405,7 +405,7 @@ public:
      *  rm_ar from AddressRangePool needs to access the internal representation
      *  of the AR to remove it from the ARPool template.
      */
-    friend int AddressRangePool::rm_ar(unsigned int ar_id, string& error_msg);
+    friend int AddressRangePool::rm_ar(unsigned int ar_id, bool force, string& error_msg);
 
     /*
      *  rm_ars from AddressRangePool needs to access the internal representation

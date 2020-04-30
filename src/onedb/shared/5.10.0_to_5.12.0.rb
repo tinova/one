@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -27,7 +27,28 @@ module Migrator
     end
 
     def up
+        feature_3600
         true
+    end
+
+    private
+
+    #Rename acl column name from user to userset to support postgresql
+    def feature_3600
+        @db.run 'DROP TABLE IF EXISTS old_acl;'
+        @db.run 'ALTER TABLE acl RENAME TO old_acl;'
+
+        create_table(:acl)
+
+        @db.transaction do
+            @db.fetch('SELECT * FROM old_acl') do |row|
+                row[:userset] = row.delete(:user)
+
+                @db[:acl].insert(row)
+            end
+        end
+
+        @db.run "DROP TABLE old_acl;"
     end
 
 end

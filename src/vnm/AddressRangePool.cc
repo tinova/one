@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -171,6 +171,7 @@ int AddressRangePool::from_xml_node(const xmlNodePtr node)
 
         if (ar->from_vattr_db(var[i]) != 0)
         {
+            delete ar;
             return -1;
         }
 
@@ -190,7 +191,7 @@ int AddressRangePool::from_xml_node(const xmlNodePtr node)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int AddressRangePool::rm_ar(unsigned int ar_id, string& error_msg)
+int AddressRangePool::rm_ar(unsigned int ar_id, bool force, string& error_msg)
 {
     map<unsigned int, AddressRange *>::iterator it;
 
@@ -202,7 +203,7 @@ int AddressRangePool::rm_ar(unsigned int ar_id, string& error_msg)
         return -1;
     }
 
-    if (it->second->get_used_addr() > 0)
+    if (!force && it->second->get_used_addr() > 0)
     {
         error_msg = "Address Range has leases in use";
         return -1;
@@ -221,7 +222,7 @@ int AddressRangePool::rm_ar(unsigned int ar_id, string& error_msg)
 
         ir.wait();
 
-        if (ir.result != true)
+        if (!force && ir.result != true)
         {
             error_msg = ir.message;
             return -1;
@@ -270,6 +271,8 @@ int AddressRangePool::rm_ars(string& error_msg)
         {
             delete ar_template.remove(it->second->attr);
         }
+
+        delete it->second;
 
         it = ar_pool.erase(it);
     }

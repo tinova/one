@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -21,7 +21,7 @@ require 'base64'
 
 UNSUPPORTED_RUBY = !(RUBY_VERSION =~ /^1.8/).nil?
 GITHUB_TAGS_URL = 'https://api.github.com/repos/opennebula/one/tags'
-ENTERPRISE_REPO_URL = 'https://downloads.opennebula.systems/repo/'
+ENTERPRISE_REPO_URL = 'https://downloads.opennebula.io/repo/'
 
 begin
     require 'zendesk_api'

@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -21,14 +21,61 @@
 /*********
  * Doc: https://dev.mysql.com/doc/refman/8.0/en/c-api.html
  ********/
+using namespace std;
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-static std::string get_encoding(MYSQL * c, const std::string& sql,
-        std::string& error)
+static unsigned long get_server_version(MYSQL * db)
 {
-    std::string encoding;
+    string version_str;
+    vector<unsigned int> ids;
+
+    string version_query = "SELECT @@GLOBAL.version";
+
+    if ( mysql_query(db, version_query.c_str()) != 0 )
+    {
+        return ULONG_MAX;
+    }
+
+    MYSQL_RES * result = mysql_store_result(db);
+
+    if (result == nullptr)
+    {
+        return ULONG_MAX;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+
+    if ( row == nullptr )
+    {
+        mysql_free_result(result);
+        return ULONG_MAX;
+    }
+
+    version_str = ((char **) row)[0];
+
+    mysql_free_result(result);
+
+    string version_number;
+    stringstream version_iss(version_str);
+
+    if (!getline(version_iss, version_number, '-') || version_number.empty())
+    {
+        return ULONG_MAX;
+    }
+
+    one_util::split(version_number, '.', ids);
+
+    return ids[0] * 10000 + ids[1] * 100 + ids[2];
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+static string get_encoding(MYSQL * c, const string& sql, string& error)
+{
+    string encoding;
 
     if ( mysql_query(c, sql.c_str()) != 0 )
     {
@@ -51,6 +98,7 @@ static std::string get_encoding(MYSQL * c, const std::string& sql,
     if ( row == nullptr )
     {
         error = "Could not read databse encoding";
+        mysql_free_result(result);
         return "";
     }
 
@@ -63,7 +111,7 @@ static std::string get_encoding(MYSQL * c, const std::string& sql,
 
 /* -------------------------------------------------------------------------- */
 
-int MySqlDB::db_encoding(std::string& error)
+int MySqlDB::db_encoding(string& error)
 {
     MYSQL * connection = mysql_init(nullptr);
 
@@ -76,7 +124,7 @@ int MySqlDB::db_encoding(std::string& error)
         return -1;
     }
 
-    std::string create_sql = "CREATE DATABASE IF NOT EXISTS " + database;
+    string create_sql = "CREATE DATABASE IF NOT EXISTS " + database;
 
     if ( mysql_query(connection, create_sql.c_str()) != 0 )
     {
@@ -92,22 +140,22 @@ int MySqlDB::db_encoding(std::string& error)
     }
 
     //Get encodings for database and tables
-    std::string db_sql = "SELECT default_character_set_name FROM "
+    string db_sql = "SELECT default_character_set_name FROM "
      "information_schema.SCHEMATA WHERE schema_name = \"" + database + "\"";
 
-    std::string db_enc = get_encoding(connection, db_sql, error);
+    string db_enc = get_encoding(connection, db_sql, error);
 
     if ( db_enc.empty() )
     {
         return -1;
     }
 
-    std::string table_sql = "SELECT CCSA.character_set_name FROM "
-     "information_schema.`TABLES` T, information_schema.`COLLATION_CHARACTER_SET_APPLICABILITY`"
+    string table_sql = "SELECT CCSA.character_set_name FROM information_schema."\
+     "`TABLES` T, information_schema.`COLLATION_CHARACTER_SET_APPLICABILITY`"
      " CCSA WHERE CCSA.collation_name = T.table_collation AND T.table_schema = "
      "\"" + database + "\" AND T.table_name = \"system_attributes\"";
 
-    std::string table_enc = get_encoding(connection, table_sql, error);
+    string table_enc = get_encoding(connection, table_sql, error);
 
     if ( !table_enc.empty() && table_enc != db_enc)
     {
@@ -134,9 +182,11 @@ MySqlDB::MySqlDB(const string& s, int p, const string& u, const string& _p,
     MYSQL * rc;
 
     ostringstream oss;
-    std::string   error;
+    string   error;
 
+    // -------------------------------------------------------------------------
     // Initialize the MySQL library
+    // -------------------------------------------------------------------------
     mysql_library_init(0, NULL, NULL);
 
     if ( db_encoding(error) == -1 )
@@ -144,7 +194,9 @@ MySqlDB::MySqlDB(const string& s, int p, const string& u, const string& _p,
         throw runtime_error(error);
     }
 
+    // -------------------------------------------------------------------------
     // Create connection pool to the server
+    // -------------------------------------------------------------------------
     for (int i=0 ; i < max_connections ; i++)
     {
         connections[i] = mysql_init(NULL);
@@ -161,6 +213,9 @@ MySqlDB::MySqlDB(const string& s, int p, const string& u, const string& _p,
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Create connection to escape strings and inititlize server settings
+    // -------------------------------------------------------------------------
     db_escape_connect = mysql_init(NULL);
 
     rc = mysql_real_connect(db_escape_connect, server.c_str(), user.c_str(),
@@ -182,13 +237,16 @@ MySqlDB::MySqlDB(const string& s, int p, const string& u, const string& _p,
         throw runtime_error(error);
     }
 
-    std::string use_sql = "USE " + database;
+    // -------------------------------------------------------------------------
+    // Connect to OpenNebula Database
+    // -------------------------------------------------------------------------
+    string use_sql = "USE " + database;
 
     for (int i=0 ; i < max_connections ; i++)
     {
         if ( mysql_query(connections[i], use_sql.c_str()) != 0 )
         {
-            std::string error = "Could not connect to database: ";
+            string error = "Could not connect to database: ";
             error.append(mysql_error(connections[i]));
 
             throw runtime_error(error);
@@ -196,7 +254,7 @@ MySqlDB::MySqlDB(const string& s, int p, const string& u, const string& _p,
 
         if ( mysql_set_character_set(connections[i], encoding.c_str()) != 0 )
         {
-            std::string error = "Could not set encoding : ";
+            string error = "Could not set encoding : ";
             error.append(mysql_error(connections[i]));
 
             throw runtime_error(error);
@@ -209,6 +267,50 @@ MySqlDB::MySqlDB(const string& s, int p, const string& u, const string& _p,
         encoding;
 
     NebulaLog::log("ONE", Log::INFO, oss);
+
+    oss.clear();
+
+    //--------------------------------------------------------------------------
+    // Get server information and FTS support & features
+    //--------------------------------------------------------------------------
+    unsigned long version;
+    unsigned long min_fts_version;
+
+    string server_info = mysql_get_server_info(db_escape_connect);
+
+    version = get_server_version(db_escape_connect);
+
+    one_util::tolower(server_info);
+
+    oss.str("");
+
+    oss << "Using " << server_info << " (" << version << ")" << " with:";
+
+    NebulaLog::log("ONE", Log::INFO, oss);
+
+    if (server_info.find("mariadb") == std::string::npos)
+    {
+        min_fts_version = 50600;
+    }
+    else
+    {
+        min_fts_version = 100005;
+    }
+
+    if (version >= min_fts_version)
+    {
+        NebulaLog::log("ONE", Log::INFO, "\tFTS enabled");
+    }
+    else
+    {
+        NebulaLog::log("ONE", Log::INFO, "\tFTS disabled");
+    }
+
+    features = {
+        {SqlFeature::MULTIPLE_VALUE, true},
+        {SqlFeature::LIMIT, true},
+        {SqlFeature::FTS, version >= min_fts_version}
+    };
 
     pthread_mutex_init(&mutex,0);
 
@@ -239,19 +341,6 @@ MySqlDB::~MySqlDB()
 }
 
 /* -------------------------------------------------------------------------- */
-
-bool MySqlDB::multiple_values_support()
-{
-    return true;
-}
-
-/* -------------------------------------------------------------------------- */
-
-bool MySqlDB::limit_support()
-{
-    return true;
-}
-
 /* -------------------------------------------------------------------------- */
 
 int MySqlDB::exec_ext(std::ostringstream& cmd, Callbackable *obj, bool quiet)
@@ -401,6 +490,7 @@ int MySqlDB::exec_ext(std::ostringstream& cmd, Callbackable *obj, bool quiet)
 }
 
 /* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 
 char * MySqlDB::escape_str(const string& str)
 {
@@ -412,12 +502,6 @@ char * MySqlDB::escape_str(const string& str)
 }
 
 /* -------------------------------------------------------------------------- */
-
-void MySqlDB::free_str(char * str)
-{
-    delete[] str;
-}
-
 /* -------------------------------------------------------------------------- */
 
 MYSQL * MySqlDB::get_db_connection()
@@ -453,22 +537,3 @@ void MySqlDB::free_db_connection(MYSQL * db)
     pthread_mutex_unlock(&mutex);
 }
 
-/* -------------------------------------------------------------------------- */
-
-bool MySqlDB::fts_available()
-{
-    unsigned long version;
-
-    version = mysql_get_server_version(db_escape_connect);
-
-    if (version >= 50600)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-/* -------------------------------------------------------------------------- */

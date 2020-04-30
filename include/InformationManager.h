@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -34,12 +34,10 @@ public:
     InformationManager(
         HostPool * _hpool,
         VirtualMachinePool * _vmpool,
-        time_t     _timer_period,
         const string& mad_location)
             : DriverManager(mad_location)
             , hpool(_hpool)
             , vmpool(_vmpool)
-            , timer_period(_timer_period)
     {
         am.addListener(this);
     }
@@ -108,9 +106,9 @@ protected:
     void _host_state(unique_ptr<Message<OpenNebulaMessages>> msg);
 
     /**
-     *  Message SYSTEM_HOST update from monitor
+     *  Message HOST_SYSTEM update from monitor
      */
-    void _system_host(unique_ptr<Message<OpenNebulaMessages>> msg);
+    void _host_system(unique_ptr<Message<OpenNebulaMessages>> msg);
 
     /**
      *  Message VM_STATE from monitor
@@ -134,28 +132,23 @@ private:
     VirtualMachinePool * vmpool;
 
     /**
-     *  Timer period for the Virtual Machine Manager.
-     */
-    time_t          timer_period;
-
-    /**
      *  Action engine for the Manager
      */
     ActionManager   am;
 
+    /**
+     *  Default timeout to wait for Information Driver (monitord)
+     */
+    static const int drivers_timeout = 10;
+
     // ------------------------------------------------------------------------
     // ActioListener Interface
     // ------------------------------------------------------------------------
-    /**
-     *  This function is executed periodically to monitor Nebula hosts.
-     */
-    void timer_action(const ActionRequest& ar) override;
-
     void finalize_action(const ActionRequest& ar) override
     {
         NebulaLog::log("InM",Log::INFO,"Stopping Information Manager...");
 
-        stop();
+        stop(drivers_timeout);
     };
 };
 

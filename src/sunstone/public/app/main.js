@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/* Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                */
+/* Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                */
 /*                                                                            */
 /* Licensed under the Apache License, Version 2.0 (the "License"); you may    */
 /* not use this file except in compliance with the License. You may obtain    */
@@ -21,9 +21,6 @@ require.config({
 
     /* Almond */
     "almond": "../bower_components/almond/almond",
-
-    /* BUFFER */
-    "buffer": "../bower_components/buffer/buffer.min",
 
     /* jQuery */
     "jquery": "../bower_components/jquery/dist/jquery",
@@ -155,7 +152,6 @@ require.config({
         "tabs/settings-tab",
         "tabs/support-tab",
         "tabs/official-support-tab",
-        "tabs/upgrade-top-tab",
         "tabs/vmgroup-tab",
         "addons/start",
         "addons/end"

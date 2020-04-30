@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------- #
-# Copyright 2002-2019, OpenNebula Project, OpenNebula Systems                #
+# Copyright 2002-2020, OpenNebula Project, OpenNebula Systems                #
 #                                                                            #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may    #
 # not use this file except in compliance with the License. You may obtain    #
@@ -55,6 +55,7 @@ module OpenNebula
             DEPLOYING
             UNDEPLOYING
             SCALING
+            COOLDOWN
         ]
 
         FAILED_STATES = %w[
@@ -138,6 +139,20 @@ module OpenNebula
         # @return [true, false] true if the running_status_vm option is enabled
         def report_ready?
             @body['ready_status_gate']
+        end
+
+        def uname
+            self['UNAME']
+        end
+
+        def gid
+            self['GID'].to_i
+        end
+
+        # Replaces this object's client with a new one
+        # @param [OpenNebula::Client] owner_client the new client
+        def replace_client(owner_client)
+            @client = owner_client
         end
 
         # Sets a new state
@@ -570,7 +585,7 @@ module OpenNebula
             get_vnet_name(net)
             extra = net[net.keys[0]]['extra'] if net[net.keys[0]].key? 'extra'
 
-            return false if extra.empty?
+            return false if !extra || extra.empty?
 
             extra.concat("\nNAME=\"#{get_vnet_name(net)}\"\n")
 
