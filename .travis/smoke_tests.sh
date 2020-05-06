@@ -51,6 +51,8 @@ else
    cat /var/log/one/monitor.log
    echo "####### onehost #########"
    onehost list
+   echo "####### monitor probe #########"
+   /var/lib/one/remotes/im/run_monitord_client dummy 0 dummy-test
 fi
 
 exit $RC
