@@ -49,10 +49,8 @@ else
    cat /var/log/one/oned.log
    echo "####### monitord #########"
    cat /var/log/one/monitor.log
-   echo "####### onehost #########"
-   onehost list
-   echo "####### monitor probe #########"
-   /var/lib/one/remotes/im/run_monitord_client dummy 0 dummy-test
+   echo "####### gem environment #########"
+   gem environment
 fi
 
 exit $RC
