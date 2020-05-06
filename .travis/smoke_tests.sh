@@ -48,10 +48,9 @@ else
    echo "####### oned.log file #########"
    cat /var/log/one/oned.log
    echo "####### monitord #########"
-   cat /var/log/one/monitord.log
+   cat /var/log/one/monitor.log
    echo "####### onehost #########"
    onehost list
-
 fi
 
 exit $RC
