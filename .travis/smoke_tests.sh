@@ -51,6 +51,8 @@ else
    cat /var/log/one/monitor.log
    echo "####### gem environment #########"
    gem environment
+   echo "####### gems #########"
+   find /home/travis/.rvm/gems/ruby-2.5.3
 fi
 
 exit $RC
