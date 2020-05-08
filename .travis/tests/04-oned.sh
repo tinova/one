@@ -30,7 +30,7 @@ rvmsudo /usr/share/one/install_gems --yes
 
 echo "--------------------- Tino ----------"
 
-gem pristine sqlite3 --version 1.4.2
+rvmsudo gem pristine sqlite3 --version 1.4.2
 
 # Enable dummy drivers
 sudo chmod o+w /etc/one/oned.conf
