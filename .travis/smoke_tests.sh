@@ -43,8 +43,8 @@ if [ $RC == 0 ]; then
    echo "All tests OK!"
 else
    echo "Test failed: "$smoke_test
-   # echo "Log follows:"
-   # cat $LOG_FILE
+   echo "Log follows:"
+   cat $LOG_FILE
    echo "####### oned.log file #########"
    cat /var/log/one/oned.log
    echo "####### monitord #########"
