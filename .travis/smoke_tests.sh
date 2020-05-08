@@ -35,8 +35,6 @@ check_test() {
     return $RC
 }
 
-gem pristine sqlite3 --version 1.4.2
-
 for smoke_test in .travis/tests/*.sh; do
   check_test "$smoke_test" || break
 done
