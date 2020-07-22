@@ -49,7 +49,7 @@ jobs:
         env:
           VALIDATE_ALL_CODEBASE: true
           DEFAULT_BRANCH: master
-          RUBY_CONFIG_FILE: /github/workspace/share/linters/.rubocop.yml
+          RUBY_CONFIG_FILE: ../../github/workspace/share/linters/.rubocop.yml
           VALIDATE_PERL: false
           VALIDATE_RAKU: false
           VALIDATE_PHP: false
