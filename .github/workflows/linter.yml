@@ -56,4 +56,5 @@ jobs:
           VALIDATE_COFFEE: false
           VALIDATE_JSX: false
           VALIDATE_CSS: false
-          VLIDATE_DART: false
+          VALIDATE_DART: false
+          VALIDATE_RUBY: true
