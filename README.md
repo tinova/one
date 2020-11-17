@@ -1,7 +1,4 @@
-# [![OpenNebula Logo](https://opennebula.io/wp-content/uploads/2019/04/img-logo-blue.svg)](https://opennebula.io/) OpenNebula
-
-<img align="left" width="100" height="100" src="https://opennebula.io/wp-content/uploads/2019/04/img-logo-blue.svg">
-
+# [![OpenNebula Logo](https://opennebula.io/wp-content/uploads/2019/04/img-logo-blue.svg)](https://opennebula.io/)
 
 [![Build Status](https://travis-ci.org/OpenNebula/one.svg?branch=master)](https://travis-ci.org/OpenNebula/one)
 
