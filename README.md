@@ -50,9 +50,9 @@ After the OpenNebula Front-end is correctly set up, the next step is preparing t
 
 ## Contact
 
-- [OpenNebula web site](https://opennebula.io)
-- [Development and issue tracking](https://github.com/OpenNebula/one/issues)
-- [Enterprise Services](https://opennebula.io/enterprise)
+- [OpenNebula web site](https://opennebula.io).
+- [Development and issue tracking](https://github.com/OpenNebula/one/issues).
+- [Enterprise Services](https://opennebula.io/enterprise).
 
 ## License
 
